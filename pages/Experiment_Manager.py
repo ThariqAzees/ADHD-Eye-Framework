@@ -58,7 +58,7 @@ with tab_config:
         with col_order:
             task_order = st.selectbox(
                 "Task Order:",
-                options=["Smooth Pursuit -> Sternberg Task", "Sternberg Task -> Smooth Pursuit", "Sternberg Task Only", "Smooth Pursuit Only"]
+                options=["Calibration -> Sternberg Task"]
             )
         with col_counter:
             counterbalancing_enabled = st.checkbox("Enable Task Counterbalancing", value=False)
@@ -234,11 +234,14 @@ with tab_monitor:
         col_actions1, col_actions2 = st.columns(2)
         with col_actions1:
             st.write("#### 🕹️ Navigation Actions")
-            if experiment_state in ["SESSION_CREATED", "CALIBRATION_COMPLETED"]:
-                if st.button("▶ Start Calibration & Smooth Pursuit", use_container_width=True):
-                    st.switch_page("pages/Smooth_Pursuit.py")
-            elif experiment_state == "SMOOTH_PURSUIT_COMPLETED":
-                if st.button("▶ Proceed to Sternberg Memory Task", use_container_width=True):
+            
+            st.markdown("""
+            **Current Experiment:**
+            `Calibration` ➡️ `Sternberg Task`
+            """)
+            
+            if experiment_state in ["SESSION_CREATED", "CALIBRATION_STARTED", "CALIBRATION_COMPLETED", "STERNBERG_STARTED"]:
+                if st.button("▶ Start Calibration & Sternberg Task", use_container_width=True):
                     st.switch_page("pages/Sternberg_Task.py")
             elif experiment_state == "STERNBERG_COMPLETED":
                 if st.button("📊 View Results Dashboard", use_container_width=True):

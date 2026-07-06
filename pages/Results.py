@@ -13,7 +13,7 @@ from visualizations import (
 )
 
 st.title("📊 Analysis Results Dashboard")
-st.subheader("Dual-Module Validation & Evaluation Dashboard")
+st.subheader("Single Cognitive-Task Validation & Evaluation Dashboard")
 
 # Read session configuration thresholds
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,12 +28,7 @@ cal_thresholds = config["calibration"]
 
 # Check if results are present in session state
 # Gating check
-from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, close_active_session
-STATE_ORDER = [
-    "NOT_STARTED", "STUDY_CONFIGURED", "PARTICIPANT_REGISTERED", "SESSION_CREATED",
-    "CALIBRATION_COMPLETED", "SMOOTH_PURSUIT_COMPLETED", "STERNBERG_COMPLETED",
-    "RESULTS_REVIEWED", "SESSION_CLOSED"
-]
+from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, close_active_session, STATE_ORDER
 current_state = st.session_state.get("experiment_state", "NOT_STARTED")
 required_state = "STERNBERG_COMPLETED"
 

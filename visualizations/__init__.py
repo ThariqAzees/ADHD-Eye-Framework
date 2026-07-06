@@ -1,4 +1,4 @@
-from visualizations.trajectory import plot_gaze_vs_target_trajectory, plot_dispersion_vs_stability
+from visualizations.trajectory import plot_dispersion_vs_stability
 from visualizations.heatmap import plot_gaze_density_heatmap
-from visualizations.timeline import plot_gaze_error_timeline, plot_reaction_time_timeline, plot_pupil_proxy_trace
+from visualizations.timeline import plot_reaction_time_timeline, plot_pupil_proxy_trace
 from visualizations.dashboard import plot_accuracy_by_load, plot_accuracy_by_distractor

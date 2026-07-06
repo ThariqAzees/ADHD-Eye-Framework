@@ -1,6 +1,6 @@
 # ADHD Eye Framework: Final Validation & Technical Report
 
-**Title:** A Webcam-Based Eye Movement Analysis Framework Integrating Smooth Pursuit Tracking and Cognitive Task-Based Feature Extraction for Exploratory ADHD Screening Research  
+**Title:** A Webcam-Based Eye Movement Analysis Framework Featuring an Integrated Calibration and Cognitive working-memory Task-Based Feature Extraction for Exploratory ADHD Screening Research  
 **Date:** July 2026  
 **Version:** 1.0.0  
 
@@ -14,9 +14,7 @@ This report presents the technical implementation, validation strategy, and expl
 > **CRITICAL REGULATORY COMPLIANCE STATEMENT**  
 > This software is an exploratory research engineering platform and **not** a clinical diagnostic instrument. It does not diagnose, treat, or detect ADHD or any other clinical condition. The machine learning model outputs similarity scores comparing task performance patterns to a specific historical clinical dataset. A qualified healthcare professional must be consulted for any diagnostic evaluation or healthcare concern.
 
-The system is structured as two independent modules to maintain methodological rigor:
-1. **Webcam Eye-Tracking Engineering Demonstration (Smooth Pursuit):** Demonstrates and logs gaze follow error and calibration indices. These data points are stored locally and never feed the machine learning classifier.
-2. **Sternberg Working Memory Task (Research Module):** Replicates the cognitive task protocol of Rojas-Líbano et al. (2019) to extract working-memory features, which are fed into a machine learning model trained on a real, clinically-labelled pediatric dataset.
+The framework features a **single cognitive-task architecture consisting of an integrated calibration phase followed by a standardized Sternberg working-memory task.** This design ensures that calibration is performed directly within the active environment before trials commence, standardizing participant workflows and preserving signal validity.
 
 ---
 
@@ -98,14 +96,3 @@ Deploying a research model trained on lab-grade data to webcam users introduces 
 - **Baseline Dataset:** Pupil sizes are reported in arbitrary area units directly output by the EyeLink 1000 infrared sensor.
 - **Webcam Pipeline:** Pupil sizes are estimated using an iris boundary pixel radius proxy (gaze distance dependent).
 - **Impact:** The scale, variance, and baseline pupil size values are mathematically incompatible. The model utilizes z-scored pupil trend indicators, but the raw values are not directly comparable.
-
-### 4.4 Smooth Pursuit Exclusion
-The smooth pursuit tracking module is deliberately **excluded** from the machine learning classification pipeline. The model only utilizes features from the Sternberg working memory task because there is currently no publicly available, clinically-labelled dataset mapping smooth pursuit eye-tracking errors to ADHD and control cohorts.
-
----
-
-## 5. Engineering & Usability Validation Results
-
-- **Timing Precision:** Client-side JavaScript timers (`setTimeout`/`setInterval` mapped to browser refresh loops) achieved sub-millisecond precision for trial durations and reaction-time captures.
-- **Calibration Verification:** Interactive validation trials yielded an average calibration accuracy of `< 50 pixels` (Good/Excellent rating) under typical domestic lighting conditions.
-- **Data Integrity:** Exported CSV reports of subject features contain only clean, engineered columns, while software/reproducibility metadata is stored separately in structured JSON formats.

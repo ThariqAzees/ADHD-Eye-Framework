@@ -5,6 +5,19 @@ import streamlit as st
 from experiment.database import insert_session, get_session, update_session_status, update_session_device_info, get_all_sessions
 from experiment.models import Session
 
+STATE_ORDER = [
+    "NOT_STARTED",
+    "STUDY_CONFIGURED",
+    "PARTICIPANT_REGISTERED",
+    "SESSION_CREATED",
+    "CALIBRATION_STARTED",
+    "CALIBRATION_COMPLETED",
+    "STERNBERG_STARTED",
+    "STERNBERG_COMPLETED",
+    "RESULTS_REVIEWED",
+    "SESSION_CLOSED"
+]
+
 def create_session(
     participant_id: str,
     study_id: str,

@@ -2,34 +2,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-def plot_gaze_error_timeline(df_valid: pd.DataFrame) -> px.line:
-    """
-    Plots the tracking error timeline by trajectory.
-    """
-    # Prevent warning when modifying a copy by using .copy()
-    df = df_valid.copy()
-    if len(df) > 0:
-        df['time_sec'] = (df['timestamp'] - df['timestamp'].iloc[0]) / 1000.0
-    else:
-        df['time_sec'] = []
-        
-    fig = px.line(
-        df, 
-        x='time_sec', 
-        y='error_px',
-        color='trial_phase',
-        labels={'time_sec': 'Elapsed Time (seconds)', 'error_px': 'Tracking Error (pixels)'},
-        title="Tracking Error Timeline by Trajectory"
-    )
-    fig.update_layout(
-        paper_bgcolor='#161B22',
-        plot_bgcolor='#161B22',
-        font=dict(color='#FFFFFF'),
-        xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)'),
-        yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)'),
-        margin=dict(l=40, r=40, t=40, b=40)
-    )
-    return fig
+
 
 def plot_reaction_time_timeline(df_resp: pd.DataFrame) -> px.scatter:
     """

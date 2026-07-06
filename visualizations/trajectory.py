@@ -1,40 +1,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 
-def plot_gaze_vs_target_trajectory(df_valid: pd.DataFrame) -> go.Figure:
-    """
-    Plots spatial overlay of predicted gaze positions (scatter) vs the target path (line).
-    """
-    fig = go.Figure()
-    
-    # Gaze positions
-    fig.add_trace(go.Scatter(
-        x=df_valid['gaze_x'], 
-        y=df_valid['gaze_y'],
-        mode='markers',
-        marker=dict(size=4, color='#39FF14', opacity=0.5),
-        name='Gaze Position'
-    ))
-    
-    # Target path
-    fig.add_trace(go.Scatter(
-        x=df_valid['target_x'], 
-        y=df_valid['target_y'],
-        mode='lines',
-        line=dict(color='#00E5FF', width=3),
-        name='Target Path'
-    ))
-    
-    fig.update_layout(
-        title="Gaze Trajectory vs Target Path Overlay",
-        paper_bgcolor='#161B22',
-        plot_bgcolor='#161B22',
-        font=dict(color='#FFFFFF'),
-        xaxis=dict(showgrid=False, title='Screen X (px)', range=[0, 1920]),
-        yaxis=dict(showgrid=False, title='Screen Y (px)', range=[1080, 0]), # inverted Y to match screen coords
-        margin=dict(l=40, r=40, t=40, b=40)
-    )
-    return fig
+
 
 def plot_dispersion_vs_stability(df_trial: pd.DataFrame) -> go.Figure:
     """

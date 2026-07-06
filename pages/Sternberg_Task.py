@@ -32,14 +32,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Participant ID check
-from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, update_session_telemetry
-STATE_ORDER = [
-    "NOT_STARTED", "STUDY_CONFIGURED", "PARTICIPANT_REGISTERED", "SESSION_CREATED",
-    "CALIBRATION_COMPLETED", "SMOOTH_PURSUIT_COMPLETED", "STERNBERG_COMPLETED",
-    "RESULTS_REVIEWED", "SESSION_CLOSED"
-]
+from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, update_session_telemetry, STATE_ORDER
 current_state = st.session_state.get("experiment_state", "NOT_STARTED")
-required_state = "CALIBRATION_COMPLETED"
+required_state = "SESSION_CREATED"
 
 if "session_id" not in st.session_state or not st.session_state["session_id"] or STATE_ORDER.index(current_state) < STATE_ORDER.index(required_state):
     st.warning("⚠️ **No active experiment session.**\n\nPlease start or resume an experiment using the Experiment Manager before collecting data.")
@@ -52,11 +47,11 @@ subject_id = st.session_state["participant_id"]
 session_id = st.session_state["session_id"]
 st.write(f"**Current Participant:** `{subject_id}` | **Session:** `{session_id}`")
 
-# Log Sternberg Task Start event
+# Transition and log Calibration Started
 logger = ExperimentLogger(session_id)
-if f"sternberg_start_logged_{session_id}" not in st.session_state:
-    logger.log_task_event("Sternberg Task Started")
-    st.session_state[f"sternberg_start_logged_{session_id}"] = True
+if current_state == "SESSION_CREATED":
+    logger.log_tracking_event("Calibration Started")
+    transition_experiment_state("CALIBRATION_STARTED")
 
 # Check if model has been trained
 models_path = os.path.join(base_dir, "ml", "models_v1.0.pkl")
@@ -83,14 +78,29 @@ if component_val is not None:
     
     # Log events & transition state
     logger = ExperimentLogger(session_id)
+    phase_ts = component_val.get('phase_timestamps', {})
+    
+    # 1. Log Calibration Started (in case it wasn't logged or to keep DB records exact)
+    logger.log_tracking_event("Calibration Started", timestamp=phase_ts.get("calibration_started"))
+    
+    # 2. Log Calibration Completed
     logger.log_tracking_event("Calibration Completed", {
         "quality": cal_diagnostics.get('quality', "Poor"),
         "mean_error": cal_diagnostics.get('mean_error', 999),
         "rms_error": cal_diagnostics.get('rms_error', 999),
         "head_motion_score": cal_diagnostics.get('head_motion_score', 1.0)
-    })
-    logger.log_task_event("Sternberg Task Completed")
+    }, timestamp=phase_ts.get("calibration_completed"))
     
+    # 3. Log Sternberg Started
+    logger.log_task_event("Sternberg Started", timestamp=phase_ts.get("sternberg_started"))
+    
+    # 4. Log Sternberg Completed
+    logger.log_task_event("Sternberg Completed", timestamp=phase_ts.get("sternberg_completed"))
+    
+    # Sequentially update session states
+    transition_experiment_state("CALIBRATION_STARTED")
+    transition_experiment_state("CALIBRATION_COMPLETED")
+    transition_experiment_state("STERNBERG_STARTED")
     transition_experiment_state("STERNBERG_COMPLETED")
     
     # Update session telemetry/device metadata from JS if available

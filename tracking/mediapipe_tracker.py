@@ -16,7 +16,7 @@ def gaze_tracker(task_type: str, calibration_thresholds: dict, key=None):
     Renders the custom client-side eye tracking, calibration and task sequencer component.
     
     Parameters:
-    - task_type: 'calibration_only', 'smooth_pursuit', or 'sternberg_task'
+    - task_type: 'calibration_only' or 'sternberg_task'
     - calibration_thresholds: dict from config.json containing excellent, good, fair thresholds.
     - key: unique identifier for the Streamlit component instance.
     

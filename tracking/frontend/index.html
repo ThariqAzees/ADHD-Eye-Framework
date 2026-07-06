@@ -516,6 +516,11 @@
     let taskType = 'calibration_only';
     let calThresholds = { excellent: 50.0, good: 80.0, fair: 120.0 };
     
+    let calibrationStartedTime = null;
+    let calibrationCompletedTime = null;
+    let sternbergStartedTime = null;
+    let sternbergCompletedTime = null;
+    
     // Gaze prediction calibration model weights (Polynomial Ridge Regression)
     let wX = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
     let wY = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
@@ -1369,6 +1374,7 @@
                     console.warn("[TRACKER] Error restarting camera:", e);
                 }
                 
+                calibrationCompletedTime = new Date().toISOString();
                 // Transition tasks on parent page
                 if (taskType === 'calibration_only') {
                     sendSessionResult({
@@ -1549,6 +1555,7 @@
     let consecutiveCalFailures = 0;
     
     function startCalibration() {
+        calibrationStartedTime = new Date().toISOString();
         calActive = true;
         setScrolling(false);
         
@@ -2412,151 +2419,18 @@
                 task: 'calibration_only',
                 ...validationReportData
             });
-        } else if (taskType === 'smooth_pursuit') {
-            startSmoothPursuitTask();
         } else if (taskType === 'sternberg_task') {
             startSternbergTask();
         }
     });
 
-    // ----------------------------------------------------
 
-    // ----------------------------------------------------
-    // MODULE 1: SMOOTH PURSUIT TASK SEQUENCER
-    // ----------------------------------------------------
-    function startSmoothPursuitTask() {
-        document.getElementById('status-text').innerText = "Running Smooth Pursuit demo...";
-        smoothPursuitLog = [];
-        smoothPursuitState.active = true;
-        smoothPursuitState.tStart = performance.now();
-        
-        // Ensure body background is gradient during active tracking
-        document.body.style.background = 'linear-gradient(135deg, #E2F1FD 0%, #EBFDF9 50%, #F9F3FF 100%)';
-        
-        // Define trajectories
-        const trajectories = ['horizontal', 'vertical', 'diagonal', 'circular', 'figure8', 'zigzag'];
-        let currentTrajIdx = 0;
-        
-        function runNextTrajectory() {
-            if (currentTrajIdx >= trajectories.length) {
-                // Done! Finish
-                smoothPursuitState.active = false;
-                taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
-                document.getElementById('status-text').innerText = "Smooth pursuit completed.";
-                
-                // Restore body background color
-                document.body.style.background = '';
-                
-                // Submit raw CSV format back to python
-                sendSessionResult({
-                    status: 'success',
-                    task: 'smooth_pursuit',
-                    raw_log: smoothPursuitLog,
-                    calibration_diagnostics: validationReportData
-                });
-                return;
-            }
-            
-            smoothPursuitState.trajectory = trajectories[currentTrajIdx];
-            let trajStart = performance.now();
-            let duration = 6000; // 6 seconds per trajectory
-            
-            // Track movement direction
-            window.spPrevX = undefined;
-            window.spFacingRight = true;
-            
-            let frameInterval = setInterval(() => {
-                let elapsed = performance.now() - trajStart;
-                if (elapsed >= duration) {
-                    clearInterval(frameInterval);
-                    currentTrajIdx++;
-                    runNextTrajectory();
-                    return;
-                }
-                
-                let target = getTargetCoordinates(smoothPursuitState.trajectory, elapsed, duration);
-                smoothPursuitState.target = target;
-                
-                // Determine direction
-                if (typeof window.spPrevX === 'undefined') window.spPrevX = target.x;
-                let dx = target.x - window.spPrevX;
-                if (dx > 0.2) {
-                    window.spFacingRight = true;
-                } else if (dx < -0.2) {
-                    window.spFacingRight = false;
-                }
-                window.spPrevX = target.x;
-                
-                // Draw target cat
-                taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
-                taskCtx.save();
-                const size = 90; // 80-100px display size
-                taskCtx.translate(target.x, target.y);
-                if (!window.spFacingRight) {
-                    taskCtx.scale(-1, 1);
-                }
-                // Apply active hue-rotate filter (blue/cyan)
-                taskCtx.filter = 'hue-rotate(140deg) saturate(1.5) drop-shadow(0 0 8px rgba(0, 229, 255, 0.8))';
-                taskCtx.drawImage(catImage, -size/2, -size/2, size, size);
-                taskCtx.restore();
-                
-                // Record frame
-                const gaze = predictGaze() || { x: NaN, y: NaN };
-                
-                smoothPursuitLog.push({
-                    timestamp: new Date().getTime(),
-                    trial: currentTrajIdx + 1,
-                    trial_phase: smoothPursuitState.trajectory,
-                    gaze_x: gaze.x,
-                    gaze_y: gaze.y,
-                    left_iris_radius: latestGazeOffset ? latestGazeOffset.leftIrisRadius : NaN,
-                    right_iris_radius: latestGazeOffset ? latestGazeOffset.rightIrisRadius : NaN,
-                    head_pose: latestGazeOffset ? latestGazeOffset.head_pose : [NaN, NaN, NaN],
-                    blink_state: latestGazeOffset ? latestGazeOffset.blinkState : 0,
-                    target_x: target.x,
-                    target_y: target.y
-                });
-                
-            }, 16); // ~60fps
-        }
-        
-        runNextTrajectory();
-    }
-    
-    function getTargetCoordinates(type, elapsed, duration) {
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2;
-        const rx = window.innerWidth * 0.35;
-        const ry = window.innerHeight * 0.35;
-        const t = (elapsed / duration) * 2 * Math.PI; // normalized cycle
-        
-        switch (type) {
-            case 'horizontal':
-                return { x: cx + rx * Math.cos(t), y: cy };
-            case 'vertical':
-                return { x: cx, y: cy + ry * Math.cos(t) };
-            case 'diagonal':
-                return { x: cx + rx * Math.cos(t), y: cy + ry * Math.cos(t) };
-            case 'circular':
-                return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) };
-            case 'figure8':
-                return { x: cx + rx * Math.sin(t), y: cy + ry * Math.sin(2*t) / 2 };
-            case 'zigzag':
-                // triangle wave
-                let ratio = (elapsed % 1500) / 1500;
-                let direction = Math.floor(elapsed / 1500) % 2 === 0 ? 1 : -1;
-                let x = cx - rx + 2*rx * (elapsed / duration);
-                let y = cy + ry * (direction === 1 ? -1 + 2*ratio : 1 - 2*ratio);
-                return { x: x, y: y };
-            default:
-                return { x: cx, y: cy };
-        }
-    }
 
     // ----------------------------------------------------
     // MODULE 2: STERNBERG TASK SEQUENCER
     // ----------------------------------------------------
     function startSternbergTask() {
+        sternbergStartedTime = new Date().toISOString();
         document.getElementById('status-text').innerText = "Starting Sternberg memory task...";
         sternbergLog = [];
         responsesList = [];
@@ -2629,6 +2503,7 @@
             // Restore body background color
             document.body.style.background = '';
             
+            sternbergCompletedTime = new Date().toISOString();
             sendSessionResult({
                 status: 'success',
                 task: 'sternberg_task',
@@ -3156,8 +3031,16 @@
         const metadata = getDeviceMetadata();
         metadata.webcam_information = detectedWebcamLabel;
         result.device_metadata = metadata;
+        
+        // Append phase timestamps
+        result.phase_timestamps = {
+            calibration_started: calibrationStartedTime,
+            calibration_completed: calibrationCompletedTime,
+            sternberg_started: sternbergStartedTime,
+            sternberg_completed: sternbergCompletedTime
+        };
 
-        console.log("Posting result back to Streamlit with device metadata:", result);
+        console.log("Posting result back to Streamlit with device metadata and timestamps:", result);
         window.parent.postMessage({
             isStreamlitMessage: true,
             type: "streamlit:setComponentValue",

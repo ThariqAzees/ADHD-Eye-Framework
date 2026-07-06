@@ -22,33 +22,30 @@ The ADHD Eye Framework is an interactive, browser-based research instrument that
 1. **Can a low-cost, consumer-hardware interaction pipeline (webcam + browser) support reliable, repeatable cognitive task administration for research use?**
 2. **What interaction design and system architecture choices are needed to make such a pipeline usable, robust, and trustworthy for both researchers (session control, calibration, logging) and participants (task clarity, feedback, comfort)?**
 
-The system is built as a multi-page Streamlit application with a custom JavaScript/MediaPipe front-end component for gaze tracking, backed by a session logging and feature-extraction pipeline.
+The framework is centered on a single interactive Sternberg working-memory task integrated with webcam-based gaze tracking.
 
 ---
 
 ## 2. System Architecture
 
-The framework is deliberately partitioned into two independent interaction modules, a design decision central to the system's validity:
-
-- **Module 1 — Smooth Pursuit (Engineering Validation Interface):** A real-time gaze-tracking demo across horizontal, vertical, circular, figure-8, and zig-zag trajectories. Used to validate tracking quality and calibration fidelity. Logs from this module are stored locally and are **never** passed into the downstream classification pipeline.
-- **Module 2 — Sternberg Working Memory Task (Cognitive Assessment Interface):** A browser-driven replication of the working-memory paradigm from Rojas-Líbano et al. (2019). Gaze stability, reaction time, omission rate, and pupil-proxy features extracted here feed the ML case-study component.
+The project features a **single cognitive-task architecture consisting of an integrated calibration phase followed by a standardized Sternberg working-memory task.** This design ensures that calibration is performed directly within the active environment before trials commence, standardizing participant workflows and preserving signal validity.
 
 ```
-User ──> Calibration UI ──> Task Selection ──> [Smooth Pursuit | Sternberg Task]
-                                                        │
-                                             Real-time Logging Layer
-                                                        │
-                                          Feature Extraction / Session Store
-                                                        │
-                                         Results Dashboard ──> Researcher Export
+Participant ──> Session Init ──> Stage 1: Gaze Calibration ──> Stage 2: Sternberg Memory Trials
+                                                                        │
+                                                             Real-Time Logging Layer
+                                                                        │
+                                                         Feature Extraction / Session Store
+                                                                        │
+                                                        Results Dashboard ──> Researcher Export
 ```
 
 Supporting subsystems:
 - `tracking/` — calibration, gaze mapping, MediaPipe integration, client-side tracker
 - `sternberg/` — task state machine, stimulus rendering, response logging, feature extraction
 - `ml/` — case-study classification pipeline (Random Forest, Gradient Boosting, SVM, XGBoost)
-- `visualizations/` — trajectory overlays, heatmaps, timelines, dashboards
-- **`experiment/`** *(in progress)* — Experiment Manager panel for session configuration, participant tracking, and structured logging instrumentation supporting the usability study
+- `visualizations/` — density heatmaps, stability dispersion, timelines, dashboards
+- `experiment/` — Experiment Manager dashboard for session configuration, participant tracking, and structured logging instrumentation
 
 ---
 
@@ -74,7 +71,6 @@ Transparency about system limitations is treated as part of the contribution, no
 - **Hardware mismatch:** Reference clinical data was collected on a 1 kHz EyeLink 1000 with chin-rest stabilization; this system uses unconstrained 30 Hz webcam tracking. Fine-grained saccadic dynamics are necessarily smoothed.
 - **Population mismatch:** The reference dataset reflects a Chilean pediatric clinical cohort (ages 10–12); findings from the case study should not be generalized to adult or other populations.
 - **Measurement unit mismatch:** Reference pupil data uses IR camera units; this system uses an iris-landmark radius pixel proxy.
-- **Scope exclusion:** Smooth Pursuit metrics are intentionally excluded from the classification pipeline due to the absence of public smooth-pursuit datasets with clinical ADHD labels — this is a system design decision, not an oversight.
 
 ---
 
@@ -94,7 +90,6 @@ ADHD_Eye_Framework/
 ├── README.md
 ├── pages/
 │   ├── Home.py
-│   ├── Smooth_Pursuit.py
 │   ├── Sternberg_Task.py
 │   └── Results.py
 ├── tracking/
@@ -141,9 +136,4 @@ If referencing this system in academic work, please cite (placeholder — update
 
 Copyright © 2026 Thariq Azees Amanulla. All rights reserved.
 
-This repository is made available for **viewing purposes only** as part of
-an ongoing academic research submission. No permission is granted to copy,
-modify, distribute, or use this code or its associated documentation, in
-whole or in part, for any purpose without the express written consent of
-the author.
-
+This repository is made available for **viewing purposes only** as part of an ongoing academic research submission. No permission is granted to copy, modify, distribute, or use this code or its associated documentation, in whole or in part, for any purpose without the express written consent of the author.
