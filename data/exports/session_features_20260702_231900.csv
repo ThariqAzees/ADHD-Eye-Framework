@@ -1,0 +1,2 @@
+subject_id,group,mean_reaction_time_ms,median_reaction_time_ms,rt_variability,rt_coefficient_of_variation,accuracy_overall,accuracy_by_load_diff,accuracy_by_distractor_diff,mean_fixation_stability,mean_pupil_proxy,omission_rate,false_alarm_rate,hit_rate
+participant_01,,303.91351351222477,115.40000009536743,376.0737716327342,1.2374368197273558,0.35,-0.2,0.30000000000000004,0.0,3.449550569021447,0.075,0.7307692307692307,0.6363636363636364

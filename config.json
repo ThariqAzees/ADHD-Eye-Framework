@@ -1,0 +1,7 @@
+{
+    "calibration": {
+        "excellent": 50.0,
+        "good": 80.0,
+        "fair": 120.0
+    }
+}

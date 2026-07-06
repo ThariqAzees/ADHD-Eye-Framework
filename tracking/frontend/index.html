@@ -1,0 +1,3096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gaze Tracker Component</title>
+    <!-- Google Fonts Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- MediaPipe CDN Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0E1117;
+            color: #FFFFFF;
+            font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            width: 100%;
+            min-height: 100%;
+        }
+
+        #container {
+            position: relative;
+            width: 100%;
+            min-height: 720px;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 24px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Glassmorphism Card style */
+        .card {
+            background: rgba(22, 27, 34, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 25px;
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            z-index: 10;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            color: #00E5FF;
+            margin-top: 0;
+            font-weight: 600;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.5;
+            color: #C9D1D9;
+        }
+
+        .btn {
+            background-color: #00E5FF;
+            color: #0E1117;
+            border: none;
+            padding: 12px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px 0 rgba(0, 229, 255, 0.4);
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px 0 rgba(0, 229, 255, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 2px solid #58A6FF;
+            color: #58A6FF;
+            box-shadow: none;
+            margin-left: 10px;
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(88, 166, 255, 0.1);
+            box-shadow: 0 4px 14px 0 rgba(88, 166, 255, 0.2);
+        }
+
+        /* Camera preview */
+        /* Camera preview */
+        #webcam-container {
+            position: relative;
+            width: 140px;
+            height: 105px;
+            border-radius: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            transform: scaleX(-1); /* mirror */
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+            z-index: 5;
+            background: rgba(15, 23, 42, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+
+        #webcam-container:hover {
+            border-color: rgba(255, 255, 255, 0.45);
+            box-shadow: 0 12px 40px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.5; /* Semi-transparent video feed */
+            transition: opacity 0.3s ease;
+        }
+
+        #webcam-container:hover #webcam {
+            opacity: 0.85; /* More opaque on hover for face adjustment */
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        /* Interactive Canvas covering screen */
+        #task-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            cursor: none;
+        }
+
+        /* Gaze Target marker */
+        .gaze-target {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #FF3366;
+            border: 4px solid #FFFFFF;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            transition: background-color 0.3s ease;
+        }
+
+        .gaze-target.calibrating {
+            background-color: #00E5FF;
+            animation: pulse 1s infinite alternate;
+        }
+
+        .gaze-target.validated {
+            background-color: #39FF14;
+        }
+
+        @keyframes pulse {
+            from { transform: translate(-50%, -50%) scale(1); }
+            to { transform: translate(-50%, -50%) scale(1.3); }
+        }
+
+        #gaze-cursor {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #39FF14;
+            box-shadow: 0 0 10px #39FF14;
+            transform: translate(-50%, -50%);
+            z-index: 30;
+            pointer-events: none;
+            display: none;
+        }
+
+        #status-text {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.75);
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 24px;
+            color: #C9D1D9;
+            z-index: 5;
+        }
+        
+        #unsupported-msg {
+            color: #FF7B72;
+            display: none;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #8B949E;
+            padding: 8px 16px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .tab-btn:hover {
+            color: #FFFFFF !important;
+        }
+        .tab-btn.active {
+            color: #00E5FF !important;
+            border-bottom: 2px solid #00E5FF !important;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <!-- Camera View -->
+    <div id="webcam-container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="overlay"></canvas>
+    </div>
+
+    <!-- UI Cards -->
+    <div id="setup-card" class="card">
+        <h2>Webcam Eye-Tracking Setup</h2>
+        <p>This session requires camera access to track your eye movements. For best accuracy:</p>
+        <ul style="text-align: left; color: #C9D1D9; padding-left: 20px;">
+            <li>Ensure your face is well-lit from the front.</li>
+            <li>Align your head in the center of the camera.</li>
+            <li>Avoid turning your head; try to move only your eyes.</li>
+            <li>Maintain a distance of about 50-60cm from the screen.</li>
+        </ul>
+        <div id="unsupported-msg">MediaPipe is loading or failed to load. Please wait...</div>
+        <button id="start-btn" class="btn" style="width: 100%; max-width: 250px;" disabled>Initializing Camera...</button>
+    </div>
+
+    <!-- Dedicated Fullscreen Calibration Overlay -->
+    <div id="calibration-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle at center, #1E293B 0%, #0B1220 100%); z-index: 9999; overflow: hidden; cursor: none; font-family: 'Poppins', sans-serif;">
+        <!-- Progress Indicator -->
+        <div id="cal-progress-container" style="position: absolute; bottom: 25px; left: 25px; font-family: 'Poppins', sans-serif; font-size: 14px; color: #FFFFFF; z-index: 10001; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 16px 20px; min-width: 220px; box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37); transition: opacity 0.5s ease;">
+            <div style="font-weight: 600; color: #FFFFFF; margin-bottom: 6px; font-size: 16px;">Calibration Progress</div>
+            <div id="cal-progress-dots" style="font-size: 18px; letter-spacing: 3px; color: #00E5FF; margin-bottom: 6px; font-family: monospace;">○ ○ ○ ○ ○ ○ ○ ○ ○</div>
+            <div id="cal-progress-text" style="font-weight: 400; color: #E2E8F0; font-size: 13px;">0 / 9 points completed</div>
+        </div>
+        
+        <!-- Environment / Head Pose Indicator -->
+        <div id="head-pose-indicator" style="position: absolute; bottom: 25px; right: 25px; font-family: 'Poppins', sans-serif; font-size: 14px; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 16px 20px; z-index: 10001; width: 295px; color: #FFFFFF; box-sizing: border-box; box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37); transition: opacity 0.5s ease;">
+            <div style="font-weight: 600; color: #FFFFFF; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 16px;">
+                <span>Live Diagnostics</span>
+                <span id="diagnostic-overall-badge" style="background-color: #EF4444; color: white; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px;">WAITING</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div id="diag-face-pos" style="font-weight: 400;"><span style="color:#EF4444;">✖</span> Face Position: <span style="font-weight:600; color:#EF4444;">Incorrect</span></div>
+                <div id="diag-distance" style="font-weight: 400;"><span style="color:#EF4444;">✖</span> Distance: <span style="font-weight:600; color:#EF4444;">Incorrect</span></div>
+                <div id="diag-lighting" style="font-weight: 400;"><span style="color:#EF4444;">✖</span> Lighting: <span style="font-weight:600; color:#EF4444;">Incorrect</span></div>
+                <div id="diag-stability" style="font-weight: 400;"><span style="color:#EF4444;">✖</span> Head Stability: <span style="font-weight:600; color:#EF4444;">Incorrect</span></div>
+            </div>
+        </div>
+        
+        <!-- Hidden elements to satisfy existing JS hooks without crashing -->
+        <div id="cal-instructions-banner" style="display: none;"></div>
+        <div id="overlay-start-container" style="display: none;"></div>
+
+        <!-- Active target dot inside overlay -->
+        <div id="cal-target-dot" style="display: none; position: absolute; width: 90px; height: 90px; border-radius: 0; transform: translate(-50%, -50%); z-index: 10005; transition: left 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), top 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);"></div>
+
+        <!-- Large Centered Glassmorphism Instruction Panel -->
+        <div id="instructions-modal" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10002; font-family: 'Poppins', sans-serif; max-width: 580px; width: 90%; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 24px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); box-sizing: border-box; color: #FFFFFF; transition: opacity 0.5s ease, visibility 0.5s ease;">
+            <h2 id="instructions-title" style="font-size: 32px; margin-top: 0; margin-bottom: 24px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.5px;">Before We Begin</h2>
+            <div id="instructions-body">
+                <ul style="text-align: left; font-size: 24px; line-height: 1.8; color: #E2E8F0; padding-left: 24px; margin-bottom: 30px; font-weight: 300; list-style-type: disc;">
+                    <li style="margin-bottom: 8px;">Sit comfortably.</li>
+                    <li style="margin-bottom: 8px;">Keep your head still.</li>
+                    <li style="margin-bottom: 8px;">Move closer to the camera.</li>
+                    <li style="margin-bottom: 8px;">Keep your face inside the frame.</li>
+                    <li style="margin-bottom: 8px;">Follow the colorful cat only using your eyes.</li>
+                    <li style="margin-bottom: 8px;">Do not move your head.</li>
+                    <li style="margin-bottom: 8px;">Blink naturally.</li>
+                    <li style="margin-bottom: 8px;">Focus until the test finishes.</li>
+                </ul>
+            </div>
+            <button id="overlay-start-btn" class="btn" style="margin-top: 0; padding: 14px 48px; font-size: 24px; border-radius: 12px; background: #00E5FF; color: #0E1117; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 8px 20px rgba(0, 229, 255, 0.3); transition: all 0.2s;" disabled>Initializing Camera...</button>
+            <div id="instructions-status" style="font-size: 20px; color: #00E5FF; margin-top: 15px; font-weight: 500; min-height: 30px;">Ready when you are.</div>
+        </div>
+    </div>
+
+    <!-- Sternberg Task Instructions Modal -->
+    <div id="sternberg-instructions-modal" style="display: none; position: relative; margin: 40px auto; text-align: center; z-index: 10002; font-family: 'Poppins', sans-serif; max-width: 620px; width: 95%; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 40px; box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37); color: #FFFFFF; box-sizing: border-box; transition: opacity 0.5s ease;">
+        <h2 style="font-size: 32px; margin-top: 0; margin-bottom: 8px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.5px;">Sternberg Memory Task</h2>
+        <h3 style="font-size: 20px; font-weight: 500; color: #00E5FF; margin-top: 0; margin-bottom: 24px;">Instructions</h3>
+        <ul style="text-align: left; font-size: 22px; line-height: 1.6; color: #E2E8F0; padding-left: 24px; margin-bottom: 30px; font-weight: 300;">
+            <li style="margin-bottom: 6px;">You will see a grid containing one or more colorful cats.</li>
+            <li style="margin-bottom: 6px;">Carefully memorize the positions of the cats.</li>
+            <li style="margin-bottom: 6px;">After a short delay, a single cat will appear.</li>
+            <li style="margin-bottom: 6px;">Decide whether the displayed cat is in one of the same positions shown previously.</li>
+            <li style="margin-bottom: 6px;">Click <b>YES</b> if the position matches.</li>
+            <li style="margin-bottom: 6px;">Click <b>NO</b> if the position does not match.</li>
+            <li style="margin-bottom: 6px;">Respond as accurately and as quickly as possible.</li>
+            <li style="margin-bottom: 6px;">Keep your eyes focused on the screen.</li>
+            <li style="margin-bottom: 6px;">Avoid moving your head during the test.</li>
+        </ul>
+        <button id="sternberg-start-btn" class="btn" style="margin-top: 0; padding: 14px 48px; font-size: 24px; border-radius: 12px; background: #00E5FF; color: #0E1117; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 8px 20px rgba(0, 229, 255, 0.3); transition: all 0.2s;">Start Test</button>
+    </div>
+
+    <!-- Advanced Diagnostics & Replay Card -->
+    <div id="validation-card" class="card" style="display: none; max-width: 800px; width: 95%; text-align: left; padding: 20px; box-sizing: border-box; overflow: hidden; margin: 10px auto;">
+        <h2 style="text-align: center; margin-top: 0; margin-bottom: 15px; font-size: 20px; color: #FFFFFF;">Calibration & Verification Analysis</h2>
+        
+        <!-- Tab Headers -->
+        <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; gap: 8px;">
+            <button id="tab-btn-summary" class="tab-btn active" style="padding: 8px 16px; font-weight: bold; cursor: pointer; font-size: 13px; outline: none;">Summary & Replay</button>
+            <button id="tab-btn-details" class="tab-btn" style="padding: 8px 16px; font-weight: bold; cursor: pointer; font-size: 13px; outline: none;">Detailed Metrics</button>
+            <button id="tab-btn-issues" class="tab-btn" style="padding: 8px 16px; font-weight: bold; cursor: pointer; font-size: 13px; outline: none; display: flex; align-items: center; gap: 6px;">Diagnostics & Tips <span id="issues-badge" style="background-color: #FF3366; color: white; border-radius: 50%; width: 16px; height: 16px; display: none; align-items: center; justify-content: center; font-size: 10px; font-weight: bold;">0</span></button>
+        </div>
+
+        <!-- Tab Contents -->
+        <!-- Tab 1: Summary & Replay -->
+        <div id="tab-content-summary" class="tab-content" style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center;">
+            <!-- Left: Quality Rating and Primary stats -->
+            <div style="flex: 1.2; min-width: 260px;">
+                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                    <span style="font-size: 11px; color: #8B949E; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 4px; letter-spacing: 0.5px;">Quality Rating</span>
+                    <span id="quality-val" style="font-size: 24px; font-weight: bold; color: #39FF14; display: block; margin-bottom: 12px;">--</span>
+                    
+                    <div style="display: flex; gap: 20px;">
+                        <div style="flex: 1;">
+                            <span style="font-size: 10px; color: #8B949E; display: block; font-weight: bold; margin-bottom: 2px;">MEAN ERROR</span>
+                            <span id="mean-err-val" style="font-size: 18px; font-weight: bold; color: #00E5FF; display: block;">--</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <span style="font-size: 10px; color: #8B949E; display: block; font-weight: bold; margin-bottom: 2px;">MEDIAN ERROR</span>
+                            <span id="median-err-val" style="font-size: 18px; font-weight: bold; color: #FFFFFF; display: block;">--</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <p style="font-size: 13px; color: #C9D1D9; line-height: 1.4; margin: 0 0 10px 0;">
+                    A moving verification sweep was completed in fullscreen overlay. View the animated replay to inspect accuracy mapping and gaze trace alignment.
+                </p>
+                
+                <!-- Score Breakdown -->
+                <div style="background: rgba(22, 27, 34, 0.5); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; font-size: 12px; color: #C9D1D9; margin-top: 12px;">
+                    <div style="font-weight: bold; color: #00E5FF; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; display: flex; justify-content: space-between;">
+                        <span>Metric Contribution</span>
+                        <span>Weight</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span>Calibration Accuracy:</span><span id="score-cal-val" style="font-weight: bold; color: #FFFFFF;">-- / 35%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span>Verification Accuracy:</span><span id="score-ver-val" style="font-weight: bold; color: #FFFFFF;">-- / 30%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span>Tracking Stability:</span><span id="score-track-val" style="font-weight: bold; color: #FFFFFF;">-- / 15%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span>Head Stability:</span><span id="score-head-val" style="font-weight: bold; color: #FFFFFF;">-- / 10%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Face Detection Confidence:</span><span id="score-face-val" style="font-weight: bold; color: #FFFFFF;">-- / 10%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Responsive Replay Canvas -->
+            <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column; align-items: center;">
+                <div style="background-color: #0E1117; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; overflow: hidden; position: relative; width: 100%; max-width: 280px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);">
+                    <canvas id="replay-canvas" width="360" height="220" style="width: 100%; height: auto; aspect-ratio: 18 / 11; display: block; background-color: #0E1117;"></canvas>
+                    <div id="replay-time-display" style="position: absolute; bottom: 8px; right: 12px; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-family: monospace; color: #00E5FF; z-index: 10;">0.0s / 10.0s</div>
+                </div>
+                <button id="replay-btn" class="btn btn-secondary" style="margin-top: 8px; width: 100%; max-width: 160px; font-size: 13px; padding: 6px 12px;">▶ Play Replay</button>
+            </div>
+        </div>
+
+        <!-- Tab 2: Detailed Metrics -->
+        <div id="tab-content-details" class="tab-content" style="display: none;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #C9D1D9;">
+                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.07);">
+                    <td style="padding: 6px 0;">Max Gaze Error:</td>
+                    <td id="max-err-val" style="font-weight: bold; text-align: right; color: #FFFFFF;">--</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.07);">
+                    <td style="padding: 6px 0;">95th Percentile Gaze Error:</td>
+                    <td id="p95-err-val" style="font-weight: bold; text-align: right; color: #FFFFFF;">--</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.07);">
+                    <td style="padding: 6px 0;">RMS Gaze Error:</td>
+                    <td id="rms-err-val" style="font-weight: bold; text-align: right; color: #FFFFFF;">--</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.07);">
+                    <td style="padding: 6px 0;">Gaze Jitter (SD of diffs):</td>
+                    <td id="jitter-val" style="font-weight: bold; text-align: right; color: #FFFFFF;">--</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.07);">
+                    <td style="padding: 6px 0;">Tracking Latency:</td>
+                    <td id="latency-val" style="font-weight: bold; text-align: right; color: #FFFFFF;">--</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.07);">
+                    <td style="padding: 6px 0;">Sample Loss Rate:</td>
+                    <td id="loss-rate-val" style="font-weight: bold; text-align: right; color: #FFFFFF;">--</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.07);">
+                    <td style="padding: 6px 0;">Samples (Collected / Rejected):</td>
+                    <td id="samples-val" style="text-align: right; color: #C9D1D9;">--</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0;">Head Motion Variance Score:</td>
+                    <td id="head-motion-val" style="text-align: right; color: #C9D1D9;">--</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Tab 3: Quality Diagnostics -->
+        <div id="tab-content-issues" class="tab-content" style="display: none;">
+            <div id="recal-instructions" style="background-color: rgba(255, 51, 102, 0.08); border-left: 4px solid #FF3366; padding: 12px; border-radius: 6px; margin-bottom: 15px; display: none;">
+                <div style="font-weight: bold; color: #FF3366; margin-bottom: 6px; font-size: 13px;">⚠️ Calibration Quality Issues Detected:</div>
+                <ul id="failure-reasons-list" style="margin: 0; padding-left: 20px; color: #C9D1D9; font-size: 12px; line-height: 1.5;">
+                    <!-- Dynamic elements -->
+                </ul>
+            </div>
+            
+            <div style="background-color: rgba(57, 255, 20, 0.04); border-left: 4px solid #39FF14; padding: 12px; border-radius: 6px; color: #C9D1D9; font-size: 12px; line-height: 1.5;">
+                <div style="font-weight: bold; color: #39FF14; margin-bottom: 6px;">💡 Calibration Optimization Tips:</div>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>Ensure front lighting is balanced. Strong background light reduces landmark tracking accuracy.</li>
+                    <li>Align your nose at the center of the camera. Maintain a distance of 50-60cm.</li>
+                    <li>Move only your eyes to look at the dot, holding your head completely steady.</li>
+                    <li>Minimize blinking while dots are pulsing/calibrating.</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Controls footer -->
+        <div style="margin-top: 15px; display: flex; justify-content: flex-end; gap: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px;">
+            <button id="recal-btn" class="btn btn-secondary" style="margin-top: 0; padding: 8px 16px; font-size: 13px;">Recalibrate</button>
+            <button id="proceed-btn" class="btn" style="display: none; margin-top: 0; padding: 8px 16px; font-size: 13px;">Proceed</button>
+        </div>
+    </div>
+
+    <!-- Active Task Elements -->
+    <div id="gaze-target-marker" class="gaze-target" style="display: none;"></div>
+    <div id="gaze-cursor"></div>
+    <canvas id="task-canvas"></canvas>
+    
+    <div id="status-text">Initializing Face Mesh...</div>
+</div>
+
+<script>
+    // Colorful Child-Friendly Cartoon Cat SVG
+    const CAT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+      <!-- Tail -->
+      <path d="M 30 75 Q 15 70 15 50 Q 15 35 25 40 Q 30 45 25 50 Q 20 45 22 40" fill="none" stroke="#FFA726" stroke-width="6" stroke-linecap="round"/>
+      <!-- Back Leg -->
+      <ellipse cx="38" cy="76" rx="10" ry="12" fill="#E65100"/>
+      <ellipse cx="40" cy="82" rx="6" ry="6" fill="#FFA726"/>
+      <!-- Body -->
+      <path d="M 35 75 Q 40 50 65 52 L 68 78 Q 50 82 35 75 Z" fill="#FFA726"/>
+      <ellipse cx="50" cy="68" rx="12" ry="10" fill="#FFCC80"/>
+      <!-- Back Front Leg -->
+      <ellipse cx="66" cy="80" rx="5" ry="10" fill="#E65100"/>
+      <!-- Front Leg -->
+      <ellipse cx="60" cy="80" rx="5" ry="10" fill="#FFA726"/>
+      <!-- Neck/Chest -->
+      <path d="M 62 55 L 72 45 L 75 52 Z" fill="#FFA726"/>
+      <!-- Left Ear -->
+      <polygon points="76,30 84,10 88,25" fill="#E65100"/>
+      <polygon points="78,27 82,14 85,23" fill="#FF8A80"/>
+      <!-- Right Ear -->
+      <polygon points="68,26 66,6 76,18" fill="#E65100"/>
+      <polygon points="70,23 68,10 74,17" fill="#FF8A80"/>
+      <!-- Head -->
+      <ellipse cx="74" cy="36" rx="14" ry="14" fill="#FFA726"/>
+      <!-- Muzzle -->
+      <ellipse cx="84" cy="38" rx="6" ry="6" fill="#FFCC80"/>
+      <!-- Eye -->
+      <circle cx="78" cy="32" r="3" fill="#FFFFFF"/>
+      <circle cx="78" cy="32" r="1.8" fill="#000000"/>
+      <circle cx="77" cy="31" r="0.7" fill="#FFFFFF"/>
+      <!-- Nose -->
+      <circle cx="89" cy="36" r="2" fill="#FF5252"/>
+      <!-- Smile -->
+      <path d="M 85 40 Q 82 42 79 40" fill="none" stroke="#000000" stroke-width="1.5" stroke-linecap="round"/>
+      <!-- Whiskers -->
+      <line x1="84" y1="39" x2="94" y2="42" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="84" y1="37" x2="95" y2="38" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`;
+
+    const CAT_SVG_DATA_URL = 'data:image/svg+xml;utf8,' + encodeURIComponent(CAT_SVG);
+    const catImage = new Image();
+    catImage.src = CAT_SVG_DATA_URL;
+
+    // Streamlit Custom Component protocol variables
+    let taskType = 'calibration_only';
+    let calThresholds = { excellent: 50.0, good: 80.0, fair: 120.0 };
+    
+    // Gaze prediction calibration model weights (Polynomial Ridge Regression)
+    let wX = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let wY = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let isCalibrated = false;
+    
+    // Calibration parameters
+    let calibrationPoints = [];
+    let calibrationData = []; // { features: [1, dx, dy, dx^2, dy^2, dx*dy], target: [tx, ty] }
+    let currentCalPointIdx = 0;
+    
+    // Validation variables
+    let validationPoints = [];
+    let validationData = []; // { target: [x,y], gaze: [x,y] }
+    let currentValPointIdx = 0;
+    
+    // Smooth Pursuit variables
+    let smoothPursuitLog = [];
+    let smoothPursuitState = { active: false, tStart: 0, trajectory: '', target: {x: 0, y: 0} };
+    
+    // Sternberg Task variables
+    let sternbergLog = [];
+    let sternbergState = { active: false, trialIdx: 0, phase: 'idle', target: {x: NaN, y: NaN} };
+    let currentTrialParams = null;
+    let responseCaptured = false;
+    let trialTimeout = null;
+    let trialPhaseStart = 0;
+    let responsesList = [];
+    
+    // UI instructions modal state control
+    window.instructionStartClicked = false;
+    function setInstructionsModalState(state, arg = '') {
+        const modal = document.getElementById('instructions-modal');
+        const title = document.getElementById('instructions-title');
+        const body = document.getElementById('instructions-body');
+        const btn = document.getElementById('overlay-start-btn');
+        const status = document.getElementById('instructions-status');
+        if (!modal || !title || !body || !btn || !status) return;
+        
+        if (state === 'setup') {
+            modal.style.opacity = '1';
+            modal.style.visibility = 'visible';
+            modal.style.pointerEvents = 'auto';
+            title.innerText = "Before We Begin";
+            body.innerHTML = `
+                <ul style="text-align: left; font-size: 24px; line-height: 1.8; color: #E2E8F0; padding-left: 24px; margin-bottom: 30px; font-weight: 300; list-style-type: disc;">
+                    <li style="margin-bottom: 8px;">Sit comfortably.</li>
+                    <li style="margin-bottom: 8px;">Keep your head still.</li>
+                    <li style="margin-bottom: 8px;">Move closer to the camera.</li>
+                    <li style="margin-bottom: 8px;">Keep your face inside the frame.</li>
+                    <li style="margin-bottom: 8px;">Follow the colorful cat only using your eyes.</li>
+                    <li style="margin-bottom: 8px;">Do not move your head.</li>
+                    <li style="margin-bottom: 8px;">Blink naturally.</li>
+                    <li style="margin-bottom: 8px;">Focus until the test finishes.</li>
+                </ul>
+            `;
+            btn.style.display = 'inline-block';
+            status.style.display = 'block';
+            status.innerText = arg || "Ready to start.";
+            status.style.color = '#00E5FF';
+        } else if (state === 'waiting') {
+            modal.style.opacity = '1';
+            modal.style.visibility = 'visible';
+            modal.style.pointerEvents = 'auto';
+            title.innerText = "Adjust Position";
+            body.innerHTML = `
+                <p style="font-size: 24px; line-height: 1.6; color: #E2E8F0; margin-bottom: 20px; font-weight: 300;">
+                    Please match the green checkmarks (✔) in the <b>Diagnostics</b> panel in the bottom-right corner.
+                </p>
+            `;
+            btn.style.display = 'none';
+            status.style.display = 'block';
+            status.innerText = arg || "Waiting for optimal conditions...";
+            status.style.color = '#EF4444';
+        } else if (state === 'countdown') {
+            modal.style.opacity = '1';
+            modal.style.visibility = 'visible';
+            modal.style.pointerEvents = 'auto';
+            title.innerText = "Get Ready!";
+            body.innerHTML = `
+                <p style="font-size: 24px; line-height: 1.6; color: #E2E8F0; margin-bottom: 20px; font-weight: 300;">
+                    Hold your pose steady. Starting soon...
+                </p>
+            `;
+            btn.style.display = 'none';
+            status.style.display = 'block';
+            status.innerText = arg || "Starting in 3...";
+            status.style.color = '#22C55E';
+        } else if (state === 'active') {
+            modal.style.opacity = '0';
+            modal.style.visibility = 'hidden';
+            modal.style.pointerEvents = 'none';
+        } else if (state === 'paused') {
+            modal.style.opacity = '1';
+            modal.style.visibility = 'visible';
+            modal.style.pointerEvents = 'auto';
+            title.innerText = "Calibration Paused";
+            body.innerHTML = `
+                <p style="font-size: 24px; line-height: 1.6; color: #EF4444; margin-bottom: 20px; font-weight: 400;">
+                    Gating conditions lost. Please re-align.
+                </p>
+                <p style="font-size: 20px; line-height: 1.5; color: #E2E8F0; font-weight: 300;">
+                    Refer to the diagnostics panel in the bottom-right.
+                </p>
+            `;
+            btn.style.display = 'none';
+            status.style.display = 'block';
+            status.innerText = arg || "Paused. Check position.";
+            status.style.color = '#EF4444';
+        }
+    }
+    
+    // Face Mesh variables
+    let faceMeshLoaded = false;
+    let latestGazeOffset = null; // { dx_l, dy_l, dx_r, dy_r, ear, head_pose }
+    let videoElement = document.getElementById('webcam');
+    let overlayCanvas = document.getElementById('overlay');
+    let overlayCtx = overlayCanvas.getContext('2d');
+    let taskCanvas = document.getElementById('task-canvas');
+    let taskCtx = taskCanvas.getContext('2d');
+    
+    // Setup canvas sizes
+    function resizeCanvases() {
+        taskCanvas.width = window.innerWidth;
+        taskCanvas.height = window.innerHeight;
+        overlayCanvas.width = overlayCanvas.parentElement.clientWidth;
+        overlayCanvas.height = overlayCanvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvases);
+    resizeCanvases();
+
+    // Helper: Euclidean distance
+    function dist(p1, p2) {
+        return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+    }
+    
+    // Polynomial Feature expansion
+    function expandFeatures(dx, dy) {
+        return [1, dx, dy, dx * dx, dy * dy, dx * dy];
+    }
+    
+    // Dot product
+    function dotProduct(a, b) {
+        let sum = 0;
+        for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
+        return sum;
+    }
+
+    // MediaPipe face mesh result listener
+    function onResults(results) {
+        if (!faceMeshLoaded) {
+            faceMeshLoaded = true;
+            document.getElementById('status-text').innerText = "Webcam ready.";
+            
+            const startBtn = document.getElementById('start-btn');
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.innerText = "Start Calibration";
+            }
+            
+            const unsupported = document.getElementById('unsupported-msg');
+            if (unsupported) unsupported.style.display = 'none';
+            
+            const overlayStartBtn = document.getElementById('overlay-start-btn');
+            if (overlayStartBtn) {
+                overlayStartBtn.disabled = false;
+                overlayStartBtn.innerText = "Start";
+            }
+            const statusEl = document.getElementById('instructions-status');
+            if (statusEl) {
+                statusEl.innerText = "Camera initialized. Press Start.";
+                statusEl.style.color = '#39FF14';
+            }
+        }
+
+        // Draw overlay face contours
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            const landmarks = results.multiFaceLandmarks[0];
+            
+            // Use native camera resolution (640x480) for all geometry calculations
+            // to prevent values from collapsing when the container/canvas is hidden (display: none).
+            const width = 640;
+            const height = 480;
+            
+            // Landmark points for Left Eye
+            const leftInner = landmarks[133];
+            const leftOuter = landmarks[33];
+            const leftIris = landmarks[468];
+            
+            // Landmark points for Right Eye
+            const rightInner = landmarks[362];
+            const rightOuter = landmarks[263];
+            const rightIris = landmarks[473];
+            
+            // Convert to screen dimensions
+            const pLI = { x: leftIris.x * width, y: leftIris.y * height };
+            const pRI = { x: rightIris.x * width, y: rightIris.y * height };
+            
+            const pLInner = { x: leftInner.x * width, y: leftInner.y * height };
+            const pLOuter = { x: leftOuter.x * width, y: leftOuter.y * height };
+            
+            const pRInner = { x: rightInner.x * width, y: rightInner.y * height };
+            const pROuter = { x: rightOuter.x * width, y: rightOuter.y * height };
+            
+            // Left eye width & center
+            const leftEyeCenter = { x: (pLInner.x + pLOuter.x)/2, y: (pLInner.y + pLOuter.y)/2 };
+            const leftEyeWidth = dist(pLInner, pLOuter);
+            
+            // Right eye width & center
+            const rightEyeCenter = { x: (pRInner.x + pROuter.x)/2, y: (pRInner.y + pROuter.y)/2 };
+            const rightEyeWidth = dist(pRInner, pROuter);
+            
+            // Compute relative offsets normalized by eye width and scaled for regression stability
+            const dx_l = ((pLI.x - leftEyeCenter.x) / leftEyeWidth) * 12.0;
+            const dy_l = ((pLI.y - leftEyeCenter.y) / leftEyeWidth) * 12.0;
+            
+            const dx_r = ((pRI.x - rightEyeCenter.x) / rightEyeWidth) * 12.0;
+            const dy_r = ((pRI.y - rightEyeCenter.y) / rightEyeWidth) * 12.0;
+            
+            // EAR (Eye Aspect Ratio) for blink state
+            // Left eye vertical landmarks: 159 (upper), 145 (lower)
+            const pLUpper = { x: landmarks[159].x * width, y: landmarks[159].y * height };
+            const pLLower = { x: landmarks[145].x * width, y: landmarks[145].y * height };
+            const earL = dist(pLUpper, pLLower) / leftEyeWidth;
+            
+            // Right eye vertical landmarks: 386 (upper), 374 (lower)
+            const pRUpper = { x: landmarks[386].x * width, y: landmarks[386].y * height };
+            const pRLower = { x: landmarks[374].x * width, y: landmarks[374].y * height };
+            const earR = dist(pRUpper, pRLower) / rightEyeWidth;
+            
+            const ear = (earL + earR) / 2.0;
+            const blinkState = (ear < 0.16) ? 1 : 0;
+            
+            // Head pose estimation (geometric)
+            const noseTip = landmarks[1];
+            const chin = landmarks[152];
+            const forehead = landmarks[10];
+            const leftBound = landmarks[234];
+            const rightBound = landmarks[454];
+            
+            // Normalize nose horizontal position within facial bounds (Yaw)
+            const yaw = (noseTip.x - leftBound.x) / (rightBound.x - leftBound.x) - 0.5;
+            // Normalize vertical position (Pitch)
+            const pitch = (noseTip.y - forehead.y) / (chin.y - forehead.y) - 0.5;
+            // Roll
+            const roll = Math.atan2((landmarks[263].y - landmarks[33].y), (landmarks[263].x - landmarks[33].x));
+            
+            // Pupil sizes in pixels
+            // Left Iris boundary landmark 469, 471
+            const pLBoundary1 = { x: landmarks[469].x * width, y: landmarks[469].y * height };
+            const pLBoundary2 = { x: landmarks[471].x * width, y: landmarks[471].y * height };
+            const leftIrisRadius = dist(pLBoundary1, pLBoundary2) / 2.0;
+            
+            const pRBoundary1 = { x: landmarks[474].x * width, y: landmarks[474].y * height };
+            const pRBoundary2 = { x: landmarks[476].x * width, y: landmarks[476].y * height };
+            const rightIrisRadius = dist(pRBoundary1, pRBoundary2) / 2.0;
+            
+            // Native camera resolution pupil sizes
+            const pLBoundary1_native = { x: landmarks[469].x * 640, y: landmarks[469].y * 480 };
+            const pLBoundary2_native = { x: landmarks[471].x * 640, y: landmarks[471].y * 480 };
+            const leftIrisRadiusNative = dist(pLBoundary1_native, pLBoundary2_native) / 2.0;
+            
+            const pRBoundary1_native = { x: landmarks[474].x * 640, y: landmarks[474].y * 480 };
+            const pRBoundary2_native = { x: landmarks[476].x * 640, y: landmarks[476].y * 480 };
+            const rightIrisRadiusNative = dist(pRBoundary1_native, pRBoundary2_native) / 2.0;
+            
+            latestGazeOffset = {
+                dx_l: dx_l, dy_l: dy_l,
+                dx_r: dx_r, dy_r: dy_r,
+                ear: ear,
+                blinkState: blinkState,
+                head_pose: [yaw, pitch, roll],
+                leftIrisRadius: leftIrisRadius,
+                rightIrisRadius: rightIrisRadius,
+                leftIrisRadiusNative: leftIrisRadiusNative,
+                rightIrisRadiusNative: rightIrisRadiusNative
+            };
+            
+            // Debug logging (throttled every 100 frames to prevent lag)
+            if (window.frameLogCounter === undefined) window.frameLogCounter = 0;
+            window.frameLogCounter++;
+            if (window.frameLogCounter % 100 === 0) {
+                console.log(`[TRACKER DEBUG] Frame ${window.frameLogCounter} | Left Iris Radius: ${leftIrisRadius.toFixed(2)}px | Right Iris Radius: ${rightIrisRadius.toFixed(2)}px | Gaze Offsets: dx_l=${dx_l.toFixed(2)}, dy_l=${dy_l.toFixed(2)}`);
+            }
+            
+            // Draw points on canvas (scaled to canvas display size dynamically)
+            if (overlayCanvas.width > 0 && overlayCanvas.height > 0) {
+                overlayCtx.fillStyle = "#39FF14";
+                overlayCtx.beginPath();
+                overlayCtx.arc(leftIris.x * overlayCanvas.width, leftIris.y * overlayCanvas.height, 2, 0, 2*Math.PI);
+                overlayCtx.arc(rightIris.x * overlayCanvas.width, rightIris.y * overlayCanvas.height, 2, 0, 2*Math.PI);
+                overlayCtx.fill();
+            }
+        } else {
+            latestGazeOffset = null;
+        }
+    }
+
+    // Initialize MediaPipe Face Mesh
+    const faceMesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+
+    faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+
+    faceMesh.onResults(onResults);
+
+    // Setup camera using MediaPipe utils
+    const camera = new Camera(videoElement, {
+        onFrame: async () => {
+            await faceMesh.send({ image: videoElement });
+        },
+        width: 640,
+        height: 480
+    });
+    
+    // Request permission and start camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(() => {
+            camera.start();
+        })
+        .catch(err => {
+            console.error("Camera error:", err);
+            document.getElementById('status-text').innerText = "Webcam access denied.";
+            document.getElementById('unsupported-msg').style.display = "block";
+            document.getElementById('unsupported-msg').innerText = "Webcam access is required for eye tracking. Please enable permissions.";
+        });
+
+    // Solve Polynomial Ridge Regression (L2 regularization) via Gradient Descent
+    // Helper function to solve A * x = B using Gaussian Elimination with partial pivoting
+    function solveLinearSystem(A, B) {
+        let n = A.length;
+        for (let i = 0; i < n; i++) {
+            // Pivot search
+            let maxEl = Math.abs(A[i][i]);
+            let maxRow = i;
+            for (let k = i + 1; k < n; k++) {
+                if (Math.abs(A[k][i]) > maxEl) {
+                    maxEl = Math.abs(A[k][i]);
+                    maxRow = k;
+                }
+            }
+
+            // Swap current row with pivot row
+            for (let k = i; k < n; k++) {
+                let tmp = A[maxRow][k];
+                A[maxRow][k] = A[i][k];
+                A[i][k] = tmp;
+            }
+            let tmp = B[maxRow];
+            B[maxRow] = B[i];
+            B[i] = tmp;
+
+            // Check for singular matrix
+            if (Math.abs(A[i][i]) < 1e-12) {
+                A[i][i] = 1e-12; // Avoid divide by zero
+            }
+
+            // Eliminate column below pivot
+            for (let k = i + 1; k < n; k++) {
+                let c = -A[k][i] / A[i][i];
+                for (let j = i; j < n; j++) {
+                    if (i === j) {
+                        A[k][j] = 0;
+                    } else {
+                        A[k][j] += c * A[i][j];
+                    }
+                }
+                B[k] += c * B[i];
+            }
+        }
+
+        // Back-substitution
+        let x = new Array(n).fill(0);
+        for (let i = n - 1; i >= 0; i--) {
+            x[i] = B[i] / A[i][i];
+            for (let k = i - 1; k >= 0; k--) {
+                B[k] -= A[k][i] * x[i];
+            }
+        }
+        return x;
+    }
+
+    // Solve Polynomial Ridge Regression (L2 regularization) analytically via Normal Equations
+    function fitGazeModel() {
+        if (calibrationData.length === 0) return;
+        
+        let lambda = 0.0001; // L2 Regularization penalty
+        
+        // Initialize A (6x6 matrix) and B (6x1 column vectors)
+        let AX = Array(6).fill(0).map(() => Array(6).fill(0));
+        let AY = Array(6).fill(0).map(() => Array(6).fill(0));
+        let BX = Array(6).fill(0);
+        let BY = Array(6).fill(0);
+        
+        // Accumulate Normal Equation terms: X^T * X and X^T * Y
+        for (let i = 0; i < calibrationData.length; i++) {
+            let feat = calibrationData[i].features; // length 6
+            let target = calibrationData[i].target; // length 2: [tx, ty]
+            
+            for (let r = 0; r < 6; r++) {
+                for (let c = 0; c < 6; c++) {
+                    let term = feat[r] * feat[c];
+                    AX[r][c] += term;
+                    AY[r][c] += term;
+                }
+                BX[r] += feat[r] * target[0];
+                BY[r] += feat[r] * target[1];
+            }
+        }
+        
+        // Add Ridge L2 penalty to diagonal (excluding bias term at index 0)
+        for (let r = 1; r < 6; r++) {
+            AX[r][r] += lambda;
+            AY[r][r] += lambda;
+        }
+        
+        try {
+            // Solve analytically
+            wX = solveLinearSystem(AX, BX);
+            wY = solveLinearSystem(AY, BY);
+            isCalibrated = true;
+            console.log("Calibration complete. Weights fitted analytically.", wX, wY);
+        } catch (e) {
+            console.error("Analytical fit failed, using default fallback weights:", e);
+            wX = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
+            wY = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
+            isCalibrated = true;
+        }
+    }
+
+    // Predict gaze coordinates (X, Y) relative to the screen dimensions
+    function predictGaze() {
+        if (!latestGazeOffset || !isCalibrated) return null;
+        
+        const avgDx = (latestGazeOffset.dx_l + latestGazeOffset.dx_r) / 2.0;
+        const avgDy = (latestGazeOffset.dy_l + latestGazeOffset.dy_r) / 2.0;
+        
+        const feat = expandFeatures(avgDx, avgDy);
+        
+        const px = dotProduct(feat, wX) * window.innerWidth;
+        const py = dotProduct(feat, wY) * window.innerHeight;
+        
+        // Clamp to screen bounds
+        const gazeX = Math.max(0, Math.min(window.innerWidth, px));
+        const gazeY = Math.max(0, Math.min(window.innerHeight, py));
+        
+        return { x: gazeX, y: gazeY };
+    }
+
+    // Draw gaze cursor during validation
+    let validationInterval = null;
+    function runGazeLoop() {
+        if (isCalibrated) {
+            const gaze = predictGaze();
+            const cursor = document.getElementById('gaze-cursor');
+            if (gaze && (validationInterval || smoothPursuitState.active || sternbergState.active)) {
+                cursor.style.display = 'block';
+                cursor.style.left = `${gaze.x}px`;
+                cursor.style.top = `${gaze.y}px`;
+            } else {
+                cursor.style.display = 'none';
+            }
+        }
+        requestAnimationFrame(runGazeLoop);
+    }
+    runGazeLoop();
+
+    // ----------------------------------------------------
+    // FLOW & SEQUENCERS
+    // ----------------------------------------------------
+    
+    // ----------------------------------------------------
+    // FLOW & SEQUENCERS WITH SCROLL BLOCK & FULLSCREEN CALIBRATION
+    // ----------------------------------------------------
+    
+    // Scrolling control helpers
+    function setScrolling(enabled) {
+        if (!enabled) {
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden';
+            window.addEventListener('scroll', preventScroll, { passive: false });
+            window.addEventListener('wheel', preventScroll, { passive: false });
+            window.addEventListener('touchmove', preventScroll, { passive: false });
+            window.addEventListener('keydown', preventScrollKeys, { passive: false });
+        } else {
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+            window.removeEventListener('scroll', preventScroll);
+            window.removeEventListener('wheel', preventScroll);
+            window.removeEventListener('touchmove', preventScroll);
+            window.removeEventListener('keydown', preventScrollKeys);
+        }
+    }
+    
+    function preventScroll(e) {
+        e.preventDefault();
+    }
+    
+    function preventScrollKeys(e) {
+        const keys = ['ArrowUp', 'ArrowDown', ' ', 'PageUp', 'PageDown', 'Home', 'End'];
+        if (keys.includes(e.key)) {
+            e.preventDefault();
+        }
+    }
+
+    // Diagnostics calculation helpers
+    let headPoseHistory = [];
+    let distanceHistory = [];
+    let lastDistanceStatus = false;
+    let calFailuresList = [];
+    let samplesCountCal = 0;
+    let samplesRejectedCal = 0;
+    
+    function getVariance(arr) {
+        if (arr.length === 0) return 0;
+        const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+        return arr.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / arr.length;
+    }
+    
+    function calculateDiagnostics() {
+        let stats = {
+            faceCentered: false,
+            distanceOptimal: false,
+            lightingGood: false,
+            headStable: false,
+            bothEyesVisible: false,
+            headMotionScore: 999.0
+        };
+        
+        if (!latestGazeOffset) {
+            return stats;
+        }
+        
+        // 1. Face Centered
+        if (latestGazeOffset.head_pose) {
+            const yaw = latestGazeOffset.head_pose[0];
+            const pitch = latestGazeOffset.head_pose[1];
+            stats.faceCentered = (Math.abs(yaw) < 0.12 && Math.abs(pitch) < 0.12);
+        }
+        
+        // 2. Eyes Open
+        stats.bothEyesVisible = (latestGazeOffset.blinkState === 0 && latestGazeOffset.ear > 0.17);
+        
+        // 3. Distance
+        const rL = latestGazeOffset.leftIrisRadiusNative || latestGazeOffset.leftIrisRadius;
+        const rR = latestGazeOffset.rightIrisRadiusNative || latestGazeOffset.rightIrisRadius;
+        const avgR = (rL + rR) / 2.0;
+        
+        distanceHistory.push(avgR);
+        if (distanceHistory.length > 12) distanceHistory.shift();
+        
+        const smoothedR = distanceHistory.reduce((a, b) => a + b, 0) / distanceHistory.length;
+        
+        let isOptimal = lastDistanceStatus;
+        if (lastDistanceStatus) {
+            // Hysteresis range: wider bounds to maintain Good state
+            isOptimal = (smoothedR >= 4.8 && smoothedR <= 14.5);
+        } else {
+            // Strict entry range to enter Good state
+            isOptimal = (smoothedR >= 5.5 && smoothedR <= 13.5);
+        }
+        lastDistanceStatus = isOptimal;
+        stats.distanceOptimal = isOptimal;
+        
+        // 4. Head Stability
+        if (latestGazeOffset.head_pose) {
+            headPoseHistory.push([...latestGazeOffset.head_pose]);
+            if (headPoseHistory.length > 15) headPoseHistory.shift();
+        }
+        if (headPoseHistory.length >= 10) {
+            const yaws = headPoseHistory.map(h => h[0]);
+            const pitches = headPoseHistory.map(h => h[1]);
+            const rolls = headPoseHistory.map(h => h[2]);
+            const varY = getVariance(yaws);
+            const varP = getVariance(pitches);
+            const varR = getVariance(rolls);
+            stats.headMotionScore = varY + varP + varR;
+            stats.headStable = (stats.headMotionScore < 0.0012);
+        }
+        
+        // 5. Lighting
+        stats.lightingGood = faceMeshLoaded && (latestGazeOffset.leftIrisRadius > 0 && latestGazeOffset.rightIrisRadius > 0);
+        
+        // Update Live Diagnostics overlay
+        updateLiveDiagnosticsUI(stats, avgR);
+        return stats;
+    }
+
+    function updateLiveDiagnosticsUI(stats, avgR = 5.0) {
+        // Face Position
+        const facePosEl = document.getElementById('diag-face-pos');
+        if (facePosEl) {
+            facePosEl.innerHTML = stats.faceCentered 
+                ? '<span style="color:#22C55E; margin-right: 6px;">✔</span> Face Position: <span style="font-weight:600; color:#22C55E;">Good</span>'
+                : '<span style="color:#EF4444; margin-right: 6px;">✖</span> Face Position: <span style="font-weight:600; color:#EF4444;">Incorrect</span>';
+        }
+        
+        // Distance
+        const distEl = document.getElementById('diag-distance');
+        if (distEl) {
+            const isGood = latestGazeOffset && stats.distanceOptimal;
+            distEl.innerHTML = isGood
+                ? '<span style="color:#22C55E; margin-right: 6px;">✔</span> Distance: <span style="font-weight:600; color:#22C55E;">Good</span>'
+                : '<span style="color:#EF4444; margin-right: 6px;">✖</span> Distance: <span style="font-weight:600; color:#EF4444;">Incorrect</span>';
+        }
+        
+        // Lighting
+        const lightEl = document.getElementById('diag-lighting');
+        if (lightEl) {
+            lightEl.innerHTML = stats.lightingGood
+                ? '<span style="color:#22C55E; margin-right: 6px;">✔</span> Lighting: <span style="font-weight:600; color:#22C55E;">Good</span>'
+                : '<span style="color:#EF4444; margin-right: 6px;">✖</span> Lighting: <span style="font-weight:600; color:#EF4444;">Incorrect</span>';
+        }
+        
+        // Head Stability
+        const stabEl = document.getElementById('diag-stability');
+        if (stabEl) {
+            stabEl.innerHTML = stats.headStable
+                ? '<span style="color:#22C55E; margin-right: 6px;">✔</span> Head Stability: <span style="font-weight:600; color:#22C55E;">Good</span>'
+                : '<span style="color:#EF4444; margin-right: 6px;">✖</span> Head Stability: <span style="font-weight:600; color:#EF4444;">Incorrect</span>';
+        }
+        
+        // Overall badge
+        const badgeEl = document.getElementById('diagnostic-overall-badge');
+        if (badgeEl) {
+            const allPassed = stats.faceCentered && stats.distanceOptimal && stats.lightingGood && stats.headStable;
+            badgeEl.innerText = allPassed ? "READY" : "WAITING";
+            badgeEl.style.backgroundColor = allPassed ? "#22C55E" : "#EF4444";
+            badgeEl.style.color = "#FFFFFF";
+        }
+    }
+
+    // Helper to resolve safe coordinates by sliding away from UI elements
+    function resolveSafeCoordinate(pt, rects, width, height) {
+        let x = pt.x;
+        let y = pt.y;
+        const pad = 45; // safety padding margin
+        
+        for (const rect of rects) {
+            if (!rect) continue;
+            // Check overlap
+            if (x >= (rect.left - pad) && x <= (rect.right + pad) &&
+                y >= (rect.top - pad) && y <= (rect.bottom + pad)) {
+                
+                // Resolve overlap by moving x or y depending on which is closer to the edge
+                const distLeft = Math.abs(x - (rect.left - pad));
+                const distRight = Math.abs(x - (rect.right + pad));
+                const distTop = Math.abs(y - (rect.top - pad));
+                const distBottom = Math.abs(y - (rect.bottom + pad));
+                
+                const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+                
+                if (minDist === distLeft && (rect.left - pad - 20) > 40) {
+                    x = Math.round(rect.left - pad - 20);
+                } else if (minDist === distRight && (rect.right + pad + 20) < width - 40) {
+                    x = Math.round(rect.right + pad + 20);
+                } else if (minDist === distTop && (rect.top - pad - 20) > 40) {
+                    y = Math.round(rect.top - pad - 20);
+                } else if (minDist === distBottom && (rect.bottom + pad + 20) < height - 40) {
+                    y = Math.round(rect.bottom + pad + 20);
+                } else {
+                    // Fallback move away
+                    if (rect.left > width / 2) {
+                        x = Math.round(rect.left - pad - 20);
+                    } else {
+                        x = Math.round(rect.right + pad + 20);
+                    }
+                }
+            }
+        }
+        
+        // Clamp to absolute margins
+        x = Math.max(50, Math.min(width - 50, x));
+        y = Math.max(50, Math.min(height - 50, y));
+        
+        return { x, y };
+    }
+
+    // Safe Region Grid point calculation
+    function getSafeCalibrationPoints() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        
+        // Viewport padding margins
+        const padX = Math.max(80, Math.round(0.08 * width));
+        const padY = Math.max(80, Math.round(0.08 * height));
+        const bottomOffset = Math.max(120, Math.round(0.12 * height)); // instructions room
+        
+        // Dynamic UI bounding box exclusion
+        const wc = document.getElementById('webcam-container');
+        const diag = document.getElementById('head-pose-indicator');
+        const inst = document.getElementById('cal-instructions-banner');
+        
+        const wcRect = wc ? wc.getBoundingClientRect() : null;
+        const diagRect = diag ? diag.getBoundingClientRect() : null;
+        const instRect = inst ? inst.getBoundingClientRect() : null;
+        
+        const rects = [wcRect, diagRect, instRect].filter(Boolean);
+        
+        const leftX = padX;
+        const midX = Math.round(width / 2);
+        const rightX = width - padX;
+        
+        const topY = padY;
+        const midY = Math.round(height / 2);
+        const bottomY = height - bottomOffset;
+        
+        let rawPoints = [
+            { x: leftX, y: topY },   { x: midX, y: topY },   { x: rightX, y: topY },
+            { x: leftX, y: midY },   { x: midX, y: midY },   { x: rightX, y: midY },
+            { x: leftX, y: bottomY }, { x: midX, y: bottomY }, { x: rightX, y: bottomY }
+        ];
+        
+        // Resolve overlaps
+        return rawPoints.map(pt => resolveSafeCoordinate(pt, rects, width, height));
+    }
+
+    function toggleFullscreenIframe(enable) {
+        try {
+            const iframes = window.parent.document.getElementsByTagName('iframe');
+            for (let i = 0; i < iframes.length; i++) {
+                if (iframes[i].contentWindow === window) {
+                    if (enable) {
+                        iframes[i].dataset.origPosition = iframes[i].style.position || '';
+                        iframes[i].dataset.origTop = iframes[i].style.top || '';
+                        iframes[i].dataset.origLeft = iframes[i].style.left || '';
+                        iframes[i].dataset.origWidth = iframes[i].style.width || '';
+                        iframes[i].dataset.origHeight = iframes[i].style.height || '';
+                        iframes[i].dataset.origZIndex = iframes[i].style.zIndex || '';
+                        
+                        iframes[i].style.setProperty('position', 'fixed', 'important');
+                        iframes[i].style.setProperty('top', '0', 'important');
+                        iframes[i].style.setProperty('left', '0', 'important');
+                        iframes[i].style.setProperty('width', '100vw', 'important');
+                        iframes[i].style.setProperty('height', '100vh', 'important');
+                        iframes[i].style.setProperty('z-index', '99999', 'important');
+                        iframes[i].style.setProperty('background-color', '#0E1117', 'important');
+                    } else {
+                        iframes[i].style.position = iframes[i].dataset.origPosition || '';
+                        iframes[i].style.top = iframes[i].dataset.origTop || '';
+                        iframes[i].style.left = iframes[i].dataset.origLeft || '';
+                        iframes[i].style.width = iframes[i].dataset.origWidth || '';
+                        iframes[i].style.height = iframes[i].dataset.origHeight || '';
+                        iframes[i].style.zIndex = iframes[i].dataset.origZIndex || '';
+                    }
+                    break;
+                }
+            }
+        } catch (e) {
+            console.warn("Unable to modify parent iframe style directly:", e);
+        }
+        
+        // Also notify via Streamlit setFrameHeight
+        const targetHeight = enable ? window.innerHeight : 700;
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setFrameHeight",
+            height: targetHeight
+        }, "*");
+    }
+
+    function updateStreamlitFrameHeight() {
+        const container = document.getElementById('container');
+        if (container) {
+            const height = Math.max(400, container.scrollHeight + 30);
+            window.parent.postMessage({
+                isStreamlitMessage: true,
+                type: "streamlit:setFrameHeight",
+                height: height
+            }, "*");
+        }
+    }
+
+    function initTabs() {
+        const tabs = ['summary', 'details', 'issues'];
+        tabs.forEach(tab => {
+            const btn = document.getElementById(`tab-btn-${tab}`);
+            if (btn) {
+                btn.onclick = () => {
+                    tabs.forEach(t => {
+                        const tBtn = document.getElementById(`tab-btn-${t}`);
+                        const tContent = document.getElementById(`tab-content-${t}`);
+                        if (tBtn) tBtn.classList.remove('active');
+                        if (tContent) tContent.style.display = 'none';
+                    });
+                    
+                    btn.classList.add('active');
+                    const content = document.getElementById(`tab-content-${tab}`);
+                    if (content) {
+                        if (tab === 'summary') {
+                            content.style.display = 'flex';
+                        } else {
+                            content.style.display = 'block';
+                        }
+                    }
+                    updateStreamlitFrameHeight();
+                };
+            }
+        });
+    }
+
+    // Automatic Resize Handler during Calibration
+    let calActive = false;
+    let valActive = false;
+    
+    window.addEventListener('resize', () => {
+        resizeCanvases();
+        if (calActive) {
+            resetCalibrationState("Window Resized. Restarting...");
+        } else if (valActive) {
+            resetVerificationState("Window Resized. Restarting...");
+        }
+    });
+
+    // Standalone & Popup Calibration Mode Logic
+    const urlParams = new URLSearchParams(window.location.search);
+    const isStandaloneCalibration = (urlParams.get('role') === 'calibration');
+
+    // Message listener for opener page to receive popup calibration results
+    if (!isStandaloneCalibration) {
+        window.addEventListener('message', (event) => {
+            const msg = event.data;
+            if (msg && msg.type === 'calibration_completed') {
+                console.log("Calibration completed in popup. Data received:", msg);
+                wX = msg.wX;
+                wY = msg.wY;
+                isCalibrated = msg.isCalibrated;
+                validationReportData = msg.result;
+                verificationLog = msg.result.verification_log || []; // Copy log to enable Play Replay
+                
+                // Hide setup-card and webcam-container on opener page
+                document.getElementById('setup-card').style.display = 'none';
+                const wc = document.getElementById('webcam-container');
+                if (wc) wc.style.display = 'none';
+                
+                // Restart opener camera stream to track active task session!
+                try {
+                    if (camera && taskType !== 'calibration_only') {
+                        console.log("[TRACKER] Restarting parent page webcam to log active task session...");
+                        camera.start();
+                    }
+                } catch (e) {
+                    console.warn("[TRACKER] Error restarting camera:", e);
+                }
+                
+                // Transition tasks on parent page
+                if (taskType === 'calibration_only') {
+                    sendSessionResult({
+                        status: 'success',
+                        task: 'calibration_only',
+                        ...validationReportData
+                    });
+                } else if (taskType === 'smooth_pursuit') {
+                    startSmoothPursuitTask();
+                } else if (taskType === 'sternberg_task') {
+                    startSternbergTask();
+                }
+            }
+        });
+    }
+
+    // Set up start button listener
+    document.getElementById('start-btn').addEventListener('click', () => {
+        if (!isStandaloneCalibration) {
+            const width = window.screen.width;
+            const height = window.screen.height;
+            
+            // Release webcam on opener page so standalone popup can access it on Windows
+            try {
+                if (camera) {
+                    console.log("[TRACKER] Stopping parent page webcam to release device lock for popup...");
+                    camera.stop();
+                }
+            } catch (e) {
+                console.warn("[TRACKER] Error releasing parent webcam:", e);
+            }
+            
+            const calWin = window.open(
+                window.location.href + (window.location.search ? '&' : '?') + 'role=calibration',
+                '_blank',
+                `width=${width},height=${height},top=0,left=0,toolbar=no,menubar=no,scrollbars=no,resizable=yes`
+            );
+            
+            if (calWin) {
+                // Show loading state in setup card
+                document.getElementById('setup-card').innerHTML = `
+                    <h2 style="color: #00E5FF; margin-top: 0; font-size: 20px;">Calibration in Progress</h2>
+                    <p style="font-size: 14px; color: #C9D1D9; line-height: 1.5; margin-bottom: 20px;">
+                        Calibration has launched in a fullscreen window. Please follow the instructions there to complete the setup.
+                    </p>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 15px; margin: 25px 0;">
+                        <div style="border: 4px solid rgba(255,255,255,0.1); border-left-color: #00E5FF; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+                        <span style="font-size: 13px; color: #8B949E;">Waiting for calibration...</span>
+                    </div>
+                    <p style="font-size: 12px; color: #8B949E; line-height: 1.4;">
+                        If the window didn't open, ensure pop-ups are allowed and click below.
+                    </p>
+                    <button id="retry-open-btn" class="btn btn-secondary" style="margin-top: 10px; width: 100%; max-width: 220px; font-size: 13px; padding: 6px 12px;">Open Calibration Screen</button>
+                `;
+                
+                if (!document.getElementById('spin-keyframe-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'spin-keyframe-style';
+                    style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+                    document.head.appendChild(style);
+                }
+                
+                document.getElementById('retry-open-btn').onclick = () => {
+                    try {
+                        if (camera) {
+                            console.log("[TRACKER] Stopping parent page webcam on retry to release lock...");
+                            camera.stop();
+                        }
+                    } catch (e) {}
+                    window.open(
+                        window.location.href + (window.location.search ? '&' : '?') + 'role=calibration',
+                        '_blank',
+                        `width=${width},height=${height},top=0,left=0,toolbar=no,menubar=no,scrollbars=no,resizable=yes`
+                    );
+                };
+                
+                const wc = document.getElementById('webcam-container');
+                if (wc) wc.style.display = 'none';
+                
+                updateStreamlitFrameHeight();
+            } else {
+                alert("Pop-up blocked! Please allow pop-ups for this website to perform calibration.");
+            }
+        } else {
+            // Backup trigger
+            document.getElementById('setup-card').style.display = 'none';
+            startCalibration();
+        }
+    });
+
+    // Standalone popup mode initialization checks
+    function checkStandaloneSetup() {
+        if (isStandaloneCalibration) {
+            if (window.opener) {
+                try {
+                    taskType = window.opener.taskType || 'calibration_only';
+                    calThresholds = window.opener.calThresholds || calThresholds;
+                    console.log("Loaded arguments from opener:", taskType, calThresholds);
+                } catch (e) {
+                    console.warn("Could not read from opener directly:", e);
+                }
+            }
+            
+            // Hide parent layout components
+            document.getElementById('setup-card').style.display = 'none';
+            document.getElementById('validation-card').style.display = 'none';
+            
+            // Lock body heights
+            document.body.style.overflow = 'hidden';
+            document.body.style.height = '100vh';
+            document.body.style.width = '100vw';
+            
+            // Show fullscreen calibration overlay
+            const overlay = document.getElementById('calibration-overlay');
+            if (overlay) overlay.style.display = 'block';
+            
+            // Force fixed floating preview
+            const wc = document.getElementById('webcam-container');
+            if (wc) {
+                wc.style.display = 'block';
+                wc.style.position = 'fixed';
+                wc.style.zIndex = '10001';
+                wc.style.top = '25px';
+                wc.style.right = '25px';
+                wc.style.width = '160px';
+                wc.style.height = '120px';
+            }
+            
+            // Set up instructions modal to setup state
+            setInstructionsModalState('setup', faceMeshLoaded ? "Camera initialized. Press Start." : "Initializing Camera...");
+            
+            // Fade in bottom transparent panels
+            const progress = document.getElementById('cal-progress-container');
+            const diagPanel = document.getElementById('head-pose-indicator');
+            if (progress) {
+                progress.style.display = 'block';
+                progress.style.opacity = '0';
+                setTimeout(() => progress.style.opacity = '1', 100);
+            }
+            if (diagPanel) {
+                diagPanel.style.display = 'block';
+                diagPanel.style.opacity = '0';
+                setTimeout(() => diagPanel.style.opacity = '1', 100);
+            }
+            
+            const osb = document.getElementById('overlay-start-btn');
+            if (osb) {
+                if (faceMeshLoaded) {
+                    osb.disabled = false;
+                    osb.innerText = "Start";
+                } else {
+                    osb.disabled = true;
+                    osb.innerText = "Initializing Camera...";
+                }
+                
+                osb.addEventListener('click', () => {
+                    startCalibration();
+                    window.instructionStartClicked = true;
+                });
+            }
+        }
+    }
+    
+    window.addEventListener('DOMContentLoaded', checkStandaloneSetup);
+    setTimeout(checkStandaloneSetup, 50);
+
+    // Dynamic resize observer for opener frame height syncing
+    if (!isStandaloneCalibration) {
+        const observer = new ResizeObserver(() => {
+            updateStreamlitFrameHeight();
+        });
+        const container = document.getElementById('container');
+        if (container) observer.observe(container);
+    }
+
+    let calProgressIndicatorInterval = null;
+    let calibrationAttempts = 0;
+    let consecutiveCalFailures = 0;
+    
+    function startCalibration() {
+        calActive = true;
+        setScrolling(false);
+        
+        // Dynamic fullscreen mode and body setup
+        toggleFullscreenIframe(true);
+        document.body.style.overflow = 'hidden';
+        document.body.style.height = '100vh';
+        document.body.style.width = '100vw';
+        
+        calibrationPoints = getSafeCalibrationPoints();
+        
+        // Shuffle points to prevent linear eye adaptation bias
+        calibrationPoints.sort(() => Math.random() - 0.5);
+        
+        // Show Fullscreen overlay and reparent webcam container z-index
+        const overlay = document.getElementById('calibration-overlay');
+        overlay.style.display = 'block';
+        
+        const wc = document.getElementById('webcam-container');
+        if (wc) {
+            wc.style.display = 'block';
+            wc.style.position = 'fixed';
+            wc.style.zIndex = '10001';
+            wc.style.top = '25px';
+            wc.style.right = '25px';
+            wc.style.width = '160px';
+            wc.style.height = '120px';
+        }
+        
+        currentCalPointIdx = 0;
+        calibrationData = [];
+        samplesCountCal = 0;
+        samplesRejectedCal = 0;
+        calFailuresList = [];
+        window.instructionStartClicked = !isStandaloneCalibration;
+        
+        // Setup body and targetDot for Cat styling
+        document.body.style.background = 'radial-gradient(circle at center, #1E293B 0%, #0B1220 100%)';
+        const targetDot = document.getElementById('cal-target-dot');
+        if (targetDot) {
+            targetDot.style.width = '90px';
+            targetDot.style.height = '90px';
+            targetDot.style.borderRadius = '0';
+            targetDot.style.border = 'none';
+            targetDot.style.boxShadow = 'none';
+            targetDot.style.backgroundColor = 'transparent';
+            targetDot.style.backgroundImage = `url("${CAT_SVG_DATA_URL}")`;
+            targetDot.style.backgroundSize = 'contain';
+            targetDot.style.backgroundRepeat = 'no-repeat';
+            targetDot.style.backgroundPosition = 'center';
+            targetDot.style.filter = 'grayscale(100%) opacity(0.5)';
+            targetDot.style.transform = 'translate(-50%, -50%) scaleX(1)';
+            window.calPrevX = undefined;
+            window.calFacingRight = true;
+        }
+        
+        // Start live diagnostics interval
+        if (calProgressIndicatorInterval) clearInterval(calProgressIndicatorInterval);
+        calProgressIndicatorInterval = setInterval(() => {
+            const diag = calculateDiagnostics();
+            tickCalibrationStateMachine(diag);
+        }, 50);
+        
+        showNextCalibrationPoint();
+    }
+    
+    let calState = 'waiting'; // 'waiting', 'countdown', 'active', 'paused'
+    let calStateTime = 0; // ms in current state
+    let calCountdownRemaining = 3;
+    let calConsecutiveGoodSamples = 0;
+    let calPointSamples = [];
+    
+    let activeCalPointTimer = null;
+    let activeCalPointCheck = null;
+    let activeCalPointTimeout = null;
+    
+    function clearAllCalibrationTimers() {
+        if (activeCalPointTimer) clearInterval(activeCalPointTimer);
+        if (activeCalPointCheck) clearInterval(activeCalPointCheck);
+        if (activeCalPointTimeout) clearTimeout(activeCalPointTimeout);
+        activeCalPointTimer = null;
+        activeCalPointCheck = null;
+        activeCalPointTimeout = null;
+    }
+    
+    function resetCalibrationState(message) {
+        clearAllCalibrationTimers();
+        if (calProgressIndicatorInterval) clearInterval(calProgressIndicatorInterval);
+        const banner = document.getElementById('cal-instructions-banner');
+        if (banner) {
+            banner.innerText = message || "Restarting Calibration...";
+            banner.style.color = "#FF3366";
+        }
+        setTimeout(() => {
+            if (banner) banner.style.color = "#FFFFFF";
+            startCalibration();
+        }, 1500);
+    }
+    
+    function updateProgressUI() {
+        const textEl = document.getElementById('cal-progress-text');
+        const dotsEl = document.getElementById('cal-progress-dots');
+        if (textEl && dotsEl) {
+            textEl.innerText = `${currentCalPointIdx} / 9 points completed`;
+            let dotStr = '';
+            for (let k = 0; k < 9; k++) {
+                dotStr += (k < currentCalPointIdx) ? '● ' : '○ ';
+            }
+            dotsEl.innerText = dotStr.trim();
+        }
+    }
+
+    function showNextCalibrationPoint() {
+        updateProgressUI();
+        
+        if (currentCalPointIdx >= calibrationPoints.length) {
+            // Calibration complete!
+            clearAllCalibrationTimers();
+            if (calProgressIndicatorInterval) clearInterval(calProgressIndicatorInterval);
+            
+            document.getElementById('cal-target-dot').style.display = 'none';
+            document.getElementById('calibration-overlay').style.display = 'none';
+            
+            // Restore webcam style
+            const wc = document.getElementById('webcam-container');
+            if (wc) {
+                wc.style.position = '';
+                wc.style.zIndex = '';
+                wc.style.top = '';
+                wc.style.right = '';
+                wc.style.width = '';
+                wc.style.height = '';
+            }
+            
+            calActive = false;
+            setScrolling(true);
+            
+            fitGazeModel();
+            startValidation();
+            return;
+        }
+        
+        const pt = calibrationPoints[currentCalPointIdx];
+        
+        const targetDot = document.getElementById('cal-target-dot');
+        targetDot.style.display = 'block';
+        targetDot.style.left = `${pt.x}px`;
+        targetDot.style.top = `${pt.y}px`;
+        
+        // Reset state machine variables for the new point
+        calState = 'waiting';
+        calStateTime = 0;
+        calConsecutiveGoodSamples = 0;
+        calPointSamples = [];
+        
+        // Set dot to grey/inactive initially
+        targetDot.style.backgroundColor = '#4A5568';
+        targetDot.style.borderColor = '#718096';
+        targetDot.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+        
+        const banner = document.getElementById('cal-instructions-banner');
+        if (banner) {
+            banner.innerText = "Waiting for optimal conditions before calibration begins...";
+            banner.style.color = '#8B949E';
+        }
+    }
+
+    function tickCalibrationStateMachine(diag) {
+        if (!calActive) return;
+        
+        // If we finished all points, do nothing
+        if (currentCalPointIdx >= calibrationPoints.length) return;
+        
+        // Setup check: Gated until start button clicked
+        if (!window.instructionStartClicked) {
+            setInstructionsModalState('setup', faceMeshLoaded ? "Camera initialized. Press Start." : "Initializing Camera...");
+            return;
+        }
+        
+        const pt = calibrationPoints[currentCalPointIdx];
+        const targetDot = document.getElementById('cal-target-dot');
+        const banner = document.getElementById('cal-instructions-banner');
+        if (!targetDot || !banner) return;
+        
+        // 4 prerequisite conditions gating logic
+        const conditionsMet = diag.faceCentered && diag.distanceOptimal && diag.lightingGood && diag.headStable;
+        
+        if (calState === 'waiting' || calState === 'paused') {
+            // Target is inactive: greyed out
+            targetDot.style.filter = 'grayscale(100%) opacity(0.5)';
+            
+            if (conditionsMet) {
+                // Transition to hold countdown
+                calState = 'countdown';
+                calStateTime = 0;
+                calCountdownRemaining = 3;
+                
+                const statusPrefix = (calState === 'paused') ? "Resuming" : "Starting";
+                setInstructionsModalState('countdown', `${statusPrefix} in 3...`);
+            } else {
+                const modalState = (calState === 'paused') ? 'paused' : 'waiting';
+                setInstructionsModalState(modalState, "Waiting for optimal conditions...");
+            }
+        } 
+        else if (calState === 'countdown') {
+            // Target is still inactive
+            targetDot.style.filter = 'grayscale(100%) opacity(0.5)';
+            
+            if (!conditionsMet) {
+                // Cancel countdown, return to waiting or paused
+                calState = 'waiting';
+                calStateTime = 0;
+                setInstructionsModalState('waiting', "Waiting for optimal conditions...");
+            } else {
+                calStateTime += 50;
+                
+                // 1.5 seconds hold countdown (0-500ms -> 3, 500-1000ms -> 2, 1000-1500ms -> 1)
+                if (calStateTime < 500) {
+                    calCountdownRemaining = 3;
+                } else if (calStateTime < 1000) {
+                    calCountdownRemaining = 2;
+                } else if (calStateTime < 1500) {
+                    calCountdownRemaining = 1;
+                } else {
+                    // Transition to active collection!
+                    calState = 'active';
+                    calStateTime = 0;
+                    calConsecutiveGoodSamples = 0;
+                    calPointSamples = [];
+                    
+                    targetDot.style.filter = 'hue-rotate(140deg) saturate(1.5) drop-shadow(0 0 8px rgba(0, 229, 255, 0.8))';
+                    setInstructionsModalState('active'); // Fades out completely!
+                    return;
+                }
+                
+                const statusPrefix = (calState === 'paused') ? "Resuming" : "Starting";
+                setInstructionsModalState('countdown', `${statusPrefix} in ${calCountdownRemaining}...`);
+            }
+        } 
+        else if (calState === 'active') {
+            if (!conditionsMet) {
+                // Pause data collection immediately!
+                calState = 'paused';
+                calStateTime = 0;
+                calConsecutiveGoodSamples = 0;
+                calPointSamples = [];
+                
+                targetDot.style.filter = 'grayscale(100%) opacity(0.5)';
+                setInstructionsModalState('paused', "Conditions lost.");
+            } else {
+                samplesCountCal++;
+                
+                // Collect sample
+                if (latestGazeOffset) {
+                    const avgDx = (latestGazeOffset.dx_l + latestGazeOffset.dx_r) / 2.0;
+                    const avgDy = (latestGazeOffset.dy_l + latestGazeOffset.dy_r) / 2.0;
+                    calPointSamples.push({
+                        features: expandFeatures(avgDx, avgDy),
+                        target: [pt.x / window.innerWidth, pt.y / window.innerHeight]
+                    });
+                }
+                
+                calConsecutiveGoodSamples++;
+                
+                // 10 consecutive successful samples (500ms)
+                if (calConsecutiveGoodSamples >= 10) {
+                    calibrationData.push(...calPointSamples);
+                    
+                    targetDot.style.filter = 'hue-rotate(80deg) saturate(2.0) drop-shadow(0 0 8px rgba(57, 255, 20, 0.8))';
+                    
+                    banner.innerText = `Point ${currentCalPointIdx + 1} Accepted!`;
+                    banner.style.color = '#39FF14';
+                    
+                    calActive = false;
+                    
+                    setTimeout(() => {
+                        currentCalPointIdx++;
+                        calActive = true;
+                        
+                        calState = 'waiting';
+                        calStateTime = 0;
+                        
+                        showNextCalibrationPoint();
+                    }, 500);
+                }
+            }
+        }
+    }
+
+    // ----------------------------------------------------
+    // MOVING TARGET VERIFICATION & SCRUB REPLAY
+    // ----------------------------------------------------
+    let verificationLog = [];
+    let activeValTimer = null;
+    let activeValInterval = null;
+    let activeValTimeout = null;
+    
+    function clearAllVerificationTimers() {
+        if (activeValTimer) clearTimeout(activeValTimer);
+        if (activeValInterval) clearInterval(activeValInterval);
+        if (activeValTimeout) clearTimeout(activeValTimeout);
+        activeValTimer = null;
+        activeValInterval = null;
+        activeValTimeout = null;
+    }
+    
+    function resetVerificationState(message) {
+        clearAllVerificationTimers();
+        const banner = document.getElementById('cal-instructions-banner');
+        if (banner) {
+            banner.innerText = message || "Restarting Verification...";
+            banner.style.color = "#FF3366";
+        }
+        setTimeout(() => {
+            if (banner) banner.style.color = "#FFFFFF";
+            startValidation();
+        }, 1500);
+    }
+    
+    function startValidation() {
+        valActive = true;
+        setScrolling(false);
+        verificationLog = [];
+        
+        // Ensure body background is gradient
+        document.body.style.background = 'linear-gradient(135deg, #E2F1FD 0%, #EBFDF9 50%, #F9F3FF 100%)';
+        
+        const overlay = document.getElementById('calibration-overlay');
+        overlay.style.display = 'block';
+        
+        const wc = document.getElementById('webcam-container');
+        if (wc) {
+            wc.style.display = 'block';
+            wc.style.position = 'fixed';
+            wc.style.zIndex = '10001';
+            wc.style.top = '25px';
+            wc.style.right = '25px';
+            wc.style.width = '160px';
+            wc.style.height = '120px';
+        }
+        
+        const targetDot = document.getElementById('cal-target-dot');
+        if (targetDot) {
+            targetDot.style.display = 'block';
+            targetDot.style.width = '90px';
+            targetDot.style.height = '90px';
+            targetDot.style.borderRadius = '0';
+            targetDot.style.border = 'none';
+            targetDot.style.boxShadow = 'none';
+            targetDot.style.backgroundColor = 'transparent';
+            targetDot.style.backgroundImage = `url("${CAT_SVG_DATA_URL}")`;
+            targetDot.style.backgroundSize = 'contain';
+            targetDot.style.backgroundRepeat = 'no-repeat';
+            targetDot.style.backgroundPosition = 'center';
+            // Verification dot is green (hue-rotate(80deg))
+            targetDot.style.filter = 'hue-rotate(80deg) saturate(2.0) drop-shadow(0 0 8px rgba(57, 255, 20, 0.8))';
+            targetDot.style.transform = 'translate(-50%, -50%) scaleX(1)';
+            window.valPrevX = undefined;
+            window.valFacingRight = true;
+        }
+        
+        const banner = document.getElementById('cal-instructions-banner');
+        if (banner) {
+            banner.innerText = "Verification Phase: Follow the moving green cat with your eyes only.";
+            banner.style.color = "#39FF14";
+        }
+        
+        const progressContainer = document.getElementById('cal-progress-container');
+        if (progressContainer) progressContainer.style.display = 'none';
+        
+        if (calProgressIndicatorInterval) clearInterval(calProgressIndicatorInterval);
+        calProgressIndicatorInterval = setInterval(() => {
+            calculateDiagnostics();
+        }, 50);
+        
+        let tStart = performance.now();
+        let sweepDuration = 10000;
+        
+        clearAllVerificationTimers();
+        
+        activeValTimer = setTimeout(() => {
+            let animStart = performance.now();
+            
+            // Record loop at 40Hz (~25ms logs)
+            activeValInterval = setInterval(() => {
+                let elapsed = performance.now() - animStart;
+                
+                if (elapsed >= sweepDuration) {
+                    clearAllVerificationTimers();
+                    if (calProgressIndicatorInterval) clearInterval(calProgressIndicatorInterval);
+                    
+                    targetDot.style.display = 'none';
+                    overlay.style.display = 'none';
+                    
+                    // Restore body background, overflow and turn off fullscreen iframe
+                    document.body.style.background = '';
+                    document.body.style.overflow = '';
+                    document.body.style.height = '';
+                    document.body.style.width = '';
+                    toggleFullscreenIframe(false);
+                    
+                    if (wc) {
+                        wc.style.display = 'none';
+                    }
+                    
+                    valActive = false;
+                    setScrolling(true);
+                    
+                    evaluateValidationQuality();
+                    return;
+                }
+                
+                let target = getVerificationTargetCoordinates(elapsed, sweepDuration);
+                targetDot.style.left = `${target.x}px`;
+                targetDot.style.top = `${target.y}px`;
+                
+                // Flip cat to face direction of movement
+                if (typeof window.valPrevX === 'undefined') window.valPrevX = target.x;
+                let dx = target.x - window.valPrevX;
+                if (dx > 0.2) {
+                    window.valFacingRight = true;
+                } else if (dx < -0.2) {
+                    window.valFacingRight = false;
+                }
+                window.valPrevX = target.x;
+                
+                if (window.valFacingRight) {
+                    targetDot.style.transform = 'translate(-50%, -50%) scaleX(1)';
+                } else {
+                    targetDot.style.transform = 'translate(-50%, -50%) scaleX(-1)';
+                }
+                
+                const gaze = predictGaze();
+                const diag = calculateDiagnostics();
+                
+                let err = gaze ? Math.sqrt(Math.pow(target.x - gaze.x, 2) + Math.pow(target.y - gaze.y, 2)) : 999.0;
+                
+                verificationLog.push({
+                    timestamp: new Date().getTime(),
+                    elapsed_ms: Math.round(elapsed),
+                    target_x: Math.round(target.x),
+                    target_y: Math.round(target.y),
+                    gaze_x: gaze ? Math.round(gaze.x) : null,
+                    gaze_y: gaze ? Math.round(gaze.y) : null,
+                    error: gaze ? Math.round(err) : null,
+                    confidence: (latestGazeOffset && latestGazeOffset.ear !== undefined) ? parseFloat((latestGazeOffset.ear).toFixed(4)) : 0.0,
+                    blink_state: latestGazeOffset ? latestGazeOffset.blinkState : 0,
+                    head_motion: (diag && diag.headMotionScore !== undefined) ? parseFloat(diag.headMotionScore.toFixed(6)) : 0.0
+                });
+                
+            }, 25);
+            
+        }, 1200);
+    }
+    
+    function getVerificationTargetCoordinates(elapsed, duration) {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        
+        const padX = Math.max(90, Math.round(0.09 * window.innerWidth));
+        const padY = Math.max(90, Math.round(0.09 * window.innerHeight));
+        const bottomOffset = Math.max(140, Math.round(0.14 * window.innerHeight));
+        
+        const rx = window.innerWidth / 2 - padX;
+        const ry = window.innerHeight / 2 - Math.max(padY, bottomOffset / 2);
+        
+        if (elapsed < duration * 0.33) {
+            let t = (elapsed / (duration * 0.33)) * Math.PI * 2;
+            return { x: cx + rx * Math.sin(t), y: cy };
+        } else if (elapsed < duration * 0.66) {
+            let t = ((elapsed - duration * 0.33) / (duration * 0.33)) * Math.PI * 2;
+            return { x: cx, y: cy + ry * Math.sin(t) };
+        } else {
+            let t = ((elapsed - duration * 0.66) / (duration * 0.34)) * Math.PI * 2;
+            return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) };
+        }
+    }
+
+    // ----------------------------------------------------
+    // COMPUTE QUALITY & DIAGNOSTIC METRICS
+    // ----------------------------------------------------
+    let validationReportData = {};
+    
+    function evaluateValidationQuality() {
+        document.getElementById('gaze-target-marker').style.display = 'none';
+        
+        const validSamples = verificationLog.filter(s => s.gaze_x !== null && s.blink_state === 0);
+        const lossRate = (verificationLog.length - validSamples.length) / verificationLog.length;
+        
+        // Scale validation errors to standard 1280x720 coordinate system for resolution independence
+        const scaleX = 1280 / window.innerWidth;
+        const scaleY = 720 / window.innerHeight;
+        
+        let errors = validSamples.map(s => {
+            const errX = (s.gaze_x - s.target_x) * scaleX;
+            const errY = (s.gaze_y - s.target_y) * scaleY;
+            return Math.sqrt(errX * errX + errY * errY);
+        });
+        
+        if (errors.length === 0) {
+            errors = [999];
+        }
+        
+        errors.sort((a, b) => a - b);
+        
+        const meanErr = errors.reduce((a, b) => a + b, 0) / errors.length;
+        const medianErr = errors[Math.floor(errors.length / 2)];
+        const maxErr = errors[errors.length - 1];
+        const p95Err = errors[Math.min(errors.length - 1, Math.floor(errors.length * 0.95))];
+        
+        const sumSq = errors.reduce((sum, err) => sum + err * err, 0);
+        const rmsErr = Math.sqrt(sumSq / errors.length);
+        
+        let jitter = 0.0;
+        if (validSamples.length > 2) {
+            let diffs = [];
+            for (let i = 1; i < validSamples.length; i++) {
+                let dx = (validSamples[i].gaze_x - validSamples[i-1].gaze_x) * scaleX;
+                let dy = (validSamples[i].gaze_y - validSamples[i-1].gaze_y) * scaleY;
+                diffs.push(Math.sqrt(dx*dx + dy*dy));
+            }
+            const avgDiff = diffs.reduce((a,b)=>a+b, 0)/diffs.length;
+            jitter = Math.sqrt(diffs.reduce((sum,d)=>sum + Math.pow(d-avgDiff, 2), 0)/diffs.length);
+        }
+        
+        const headMotions = verificationLog.map(s => s.head_motion);
+        const avgHeadMotion = headMotions.reduce((a,b)=>a+b,0)/headMotions.length;
+        
+        // ----------------------------------------------------
+        // DYNAMIC QUALITY SCORE CALCULATION
+        // ----------------------------------------------------
+        
+        // 1. Calibration Accuracy (35% Max)
+        // Run fitted model on calibration points to determine mean calibration error
+        let calMeanErr = 999.0;
+        if (calibrationData.length > 0) {
+            let calErrors = [];
+            for (const sample of calibrationData) {
+                const predX = dotProduct(wX, sample.features) * window.innerWidth;
+                const predY = dotProduct(wY, sample.features) * window.innerHeight;
+                const targetX = sample.target[0] * window.innerWidth;
+                const targetY = sample.target[1] * window.innerHeight;
+                
+                const errX = (predX - targetX) * scaleX;
+                const errY = (predY - targetY) * scaleY;
+                calErrors.push(Math.sqrt(errX*errX + errY*errY));
+            }
+            calMeanErr = calErrors.reduce((a,b)=>a+b, 0) / calErrors.length;
+        }
+        
+        let calAccScore = 0;
+        if (calMeanErr <= 40) calAccScore = 35;
+        else if (calMeanErr <= 80) calAccScore = 35 - ((calMeanErr - 40) / 40) * 15;
+        else if (calMeanErr <= 150) calAccScore = 20 - ((calMeanErr - 80) / 70) * 15;
+        else calAccScore = Math.max(0, 5 - ((calMeanErr - 150) / 100) * 5);
+        calAccScore = Math.round(calAccScore);
+        
+        // 2. Verification Accuracy (30% Max)
+        let verAccScore = 0;
+        if (meanErr <= 80) verAccScore = 30;
+        else if (meanErr <= 150) verAccScore = 30 - ((meanErr - 80) / 70) * 10;
+        else if (meanErr <= 250) verAccScore = 20 - ((meanErr - 150) / 100) * 10;
+        else verAccScore = Math.max(0, 10 - ((meanErr - 250) / 100) * 10);
+        verAccScore = Math.round(verAccScore);
+        
+        // 3. Tracking Stability (15% Max)
+        let trackStabilityScore = 0;
+        if (jitter <= 15) trackStabilityScore = 15;
+        else if (jitter <= 35) trackStabilityScore = 15 - ((jitter - 15) / 20) * 7;
+        else trackStabilityScore = Math.max(0, 8 - ((jitter - 35) / 50) * 8);
+        trackStabilityScore = Math.round(trackStabilityScore);
+        
+        // 4. Head Stability (10% Max)
+        let headStabilityScore = 0;
+        if (avgHeadMotion <= 0.0006) headStabilityScore = 10;
+        else if (avgHeadMotion <= 0.0015) headStabilityScore = 10 - ((avgHeadMotion - 0.0006) / 0.0009) * 5;
+        else headStabilityScore = Math.max(0, 5 - ((avgHeadMotion - 0.0015) / 0.003) * 5);
+        headStabilityScore = Math.round(headStabilityScore);
+        
+        // 5. Face Detection Confidence (10% Max)
+        let faceConfScore = 0;
+        if (lossRate <= 0.03) faceConfScore = 10;
+        else if (lossRate <= 0.12) faceConfScore = 10 - ((lossRate - 0.03) / 0.09) * 5;
+        else faceConfScore = Math.max(0, 5 - ((lossRate - 0.12) / 0.3) * 5);
+        faceConfScore = Math.round(faceConfScore);
+        
+        const totalScore = calAccScore + verAccScore + trackStabilityScore + headStabilityScore + faceConfScore;
+        
+        // Determine passes/quality based on score
+        let quality = "Poor";
+        let qualityColor = "#FF3366";
+        let passes = false;
+        
+        if (totalScore >= 80) {
+            quality = "Excellent";
+            qualityColor = "#39FF14";
+            passes = true;
+        } else if (totalScore >= 65) {
+            quality = "Good";
+            qualityColor = "#58A6FF";
+            passes = true;
+        } else if (totalScore >= 50) {
+            quality = "Fair";
+            qualityColor = "#D29922";
+            passes = true;
+        }
+        
+        let reasons = [];
+        if (calAccScore < 20) reasons.push(`Calibration Accuracy is low (${calAccScore}/35%). Align your face center and look precisely at the red dots.`);
+        if (verAccScore < 15) reasons.push(`Verification Accuracy is low (${verAccScore}/30%). Follow the moving green dot closely with your eyes only.`);
+        if (trackStabilityScore < 8) reasons.push(`High high-frequency gaze jitter. Adjust lighting to prevent tracking instability.`);
+        if (headStabilityScore < 5) reasons.push(`Significant head movement detected (${headStabilityScore}/10%). Keep head completely steady during sweeps.`);
+        if (faceConfScore < 5) reasons.push(`High blink rate or camera loss rate (${faceConfScore}/10%). Avoid blinks during active sweeps and adjust camera lighting.`);
+        
+        // Render metrics to detailed view in screen pixels (unscaled)
+        document.getElementById('mean-err-val').innerText = `${Math.round(meanErr)} px`;
+        document.getElementById('median-err-val').innerText = `${Math.round(medianErr)} px`;
+        document.getElementById('max-err-val').innerText = `${Math.round(maxErr)} px`;
+        document.getElementById('p95-err-val').innerText = `${Math.round(p95Err)} px`;
+        document.getElementById('rms-err-val').innerText = `${Math.round(rmsErr)} px`;
+        document.getElementById('jitter-val').innerText = `${jitter.toFixed(1)} px`;
+        document.getElementById('latency-val').innerText = `~25 ms`;
+        document.getElementById('loss-rate-val').innerText = `${(lossRate * 100).toFixed(1)} %`;
+        document.getElementById('samples-val').innerText = `${samplesCountCal} / ${samplesRejectedCal} rej.`;
+        document.getElementById('head-motion-val').innerText = avgHeadMotion.toFixed(5);
+        
+        // Render score breakdown details to Tab 1 breakdown container
+        document.getElementById('score-cal-val').innerText = `${calAccScore}% / 35%`;
+        document.getElementById('score-ver-val').innerText = `${verAccScore}% / 30%`;
+        document.getElementById('score-track-val').innerText = `${trackStabilityScore}% / 15%`;
+        document.getElementById('score-head-val').innerText = `${headStabilityScore}% / 10%`;
+        document.getElementById('score-face-val').innerText = `${faceConfScore}% / 10%`;
+        
+        // Update header quality rating
+        const qEl = document.getElementById('quality-val');
+        qEl.innerText = `${quality} (${totalScore}%)`;
+        qEl.style.color = qualityColor;
+        
+        const rEl = document.getElementById('recal-instructions');
+        const listEl = document.getElementById('failure-reasons-list');
+        const badgeEl = document.getElementById('issues-badge');
+        
+        if (reasons.length > 0) {
+            rEl.style.display = 'block';
+            listEl.innerHTML = '';
+            reasons.forEach(r => {
+                let li = document.createElement('li');
+                li.innerText = r;
+                listEl.appendChild(li);
+            });
+            if (badgeEl) {
+                badgeEl.innerText = reasons.length;
+                badgeEl.style.display = 'inline-flex';
+            }
+        } else {
+            rEl.style.display = 'none';
+            if (badgeEl) {
+                badgeEl.style.display = 'none';
+            }
+        }
+        
+        document.getElementById('validation-card').style.display = 'block';
+        document.getElementById('status-text').innerText = `Verification Quality: ${quality}`;
+        
+        const proceedBtn = document.getElementById('proceed-btn');
+        if (proceedBtn) {
+            proceedBtn.style.display = 'inline-block';
+            if (passes) {
+                proceedBtn.innerText = "Proceed";
+                proceedBtn.className = "btn";
+                proceedBtn.style.backgroundColor = "#00E5FF";
+                proceedBtn.style.color = "#0E1117";
+                proceedBtn.style.border = "none";
+                proceedBtn.style.boxShadow = "0 4px 14px 0 rgba(0, 229, 255, 0.4)";
+            } else {
+                proceedBtn.innerText = "Proceed Anyway";
+                proceedBtn.className = "btn btn-secondary";
+                proceedBtn.style.backgroundColor = "transparent";
+                proceedBtn.style.color = "#FF3366";
+                proceedBtn.style.borderColor = "#FF3366";
+                proceedBtn.style.borderStyle = "solid";
+                proceedBtn.style.borderWidth = "2px";
+                proceedBtn.style.boxShadow = "none";
+            }
+        }
+        
+        setupGazeReplayAnimation();
+        updateStreamlitFrameHeight();
+        
+        validationReportData = {
+            mean_error: Math.round(meanErr),
+            median_error: Math.round(medianErr),
+            max_error: Math.round(maxErr),
+            p95_error: Math.round(p95Err),
+            rms_error: Math.round(rmsErr),
+            latency_ms: 25,
+            gaze_jitter: parseFloat(jitter.toFixed(2)),
+            sample_loss_rate: parseFloat(lossRate.toFixed(4)),
+            samples_collected: samplesCountCal,
+            samples_rejected: samplesRejectedCal,
+            head_motion_score: parseFloat(avgHeadMotion.toFixed(6)),
+            score: score,
+            quality: quality,
+            passes: passes,
+            failure_reasons: reasons,
+            verification_log: verificationLog
+        };
+    }
+
+    // ----------------------------------------------------
+    // VERIFICATION REPLAY ANIMATION SEQUENCER
+    // ----------------------------------------------------
+    let replayInterval = null;
+    
+    function setupGazeReplayAnimation() {
+        const canvas = document.getElementById('replay-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        ctx.fillStyle = '#0E1117';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const btn = document.getElementById('replay-btn');
+        btn.onclick = () => {
+            playGazeReplay();
+        };
+    }
+    
+    function playGazeReplay() {
+        if (verificationLog.length === 0) return;
+        
+        const canvas = document.getElementById('replay-canvas');
+        const ctx = canvas.getContext('2d');
+        const btn = document.getElementById('replay-btn');
+        const timeEl = document.getElementById('replay-time-display');
+        
+        btn.disabled = true;
+        btn.innerText = "⌛ Replaying...";
+        
+        if (replayInterval) clearInterval(replayInterval);
+        
+        let frameIdx = 0;
+        const totalFrames = verificationLog.length;
+        
+        replayInterval = setInterval(() => {
+            if (frameIdx >= totalFrames) {
+                clearInterval(replayInterval);
+                btn.disabled = false;
+                btn.innerText = "▶ Play Replay";
+                return;
+            }
+            
+            const frame = verificationLog[frameIdx];
+            
+            ctx.fillStyle = '#0E1117';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Target trail
+            ctx.strokeStyle = 'rgba(255, 51, 102, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            
+            const scaleX = canvas.width / window.innerWidth;
+            const scaleY = canvas.height / window.innerHeight;
+            
+            ctx.strokeStyle = 'rgba(255, 51, 102, 0.2)';
+            ctx.beginPath();
+            for (let i = 0; i <= frameIdx; i++) {
+                let x = verificationLog[i].target_x * scaleX;
+                let y = verificationLog[i].target_y * scaleY;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Draw Gaze trail
+            ctx.strokeStyle = 'rgba(0, 229, 255, 0.2)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            let firstGaze = true;
+            for (let i = 0; i <= frameIdx; i++) {
+                if (verificationLog[i].gaze_x !== null && verificationLog[i].blink_state === 0) {
+                    let x = verificationLog[i].gaze_x * scaleX;
+                    let y = verificationLog[i].gaze_y * scaleY;
+                    if (firstGaze) {
+                        ctx.moveTo(x, y);
+                        firstGaze = false;
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+            }
+            ctx.stroke();
+            
+            // Draw Target Cat
+            let repPrevX = frameIdx > 0 ? verificationLog[frameIdx-1].target_x : frame.target_x;
+            let repFacingRight = (frame.target_x >= repPrevX);
+            ctx.save();
+            const repSize = 36;
+            ctx.translate(frame.target_x * scaleX, frame.target_y * scaleY);
+            if (!repFacingRight) {
+                ctx.scale(-1, 1);
+            }
+            ctx.filter = 'hue-rotate(80deg) saturate(2.0)'; // green target cat
+            ctx.drawImage(catImage, -repSize/2, -repSize/2, repSize, repSize);
+            ctx.restore();
+            
+            // Draw Gaze Cat
+            if (frame.gaze_x !== null && frame.blink_state === 0) {
+                ctx.save();
+                const gazeSize = 24;
+                ctx.translate(frame.gaze_x * scaleX, frame.gaze_y * scaleY);
+                ctx.filter = 'hue-rotate(180deg) saturate(1.5)'; // blue/cyan gaze cat
+                ctx.drawImage(catImage, -gazeSize/2, -gazeSize/2, gazeSize, gazeSize);
+                ctx.restore();
+                
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(frame.target_x * scaleX, frame.target_y * scaleY);
+                ctx.lineTo(frame.gaze_x * scaleX, frame.gaze_y * scaleY);
+                ctx.stroke();
+            }
+            
+            timeEl.innerText = `${(frame.elapsed_ms / 1000).toFixed(1)}s / 10.0s`;
+            
+            frameIdx++;
+        }, 25);
+    }
+
+    // Recalibrate trigger
+    document.getElementById('recal-btn').addEventListener('click', () => {
+        document.getElementById('validation-card').style.display = 'none';
+        if (replayInterval) clearInterval(replayInterval);
+        startCalibration();
+    });
+
+    // Proceed trigger
+    document.getElementById('proceed-btn').addEventListener('click', () => {
+        document.getElementById('validation-card').style.display = 'none';
+        if (replayInterval) clearInterval(replayInterval);
+        
+        if (isStandaloneCalibration) {
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: 'calibration_completed',
+                    result: validationReportData,
+                    wX: wX,
+                    wY: wY,
+                    isCalibrated: isCalibrated
+                }, '*');
+            }
+            window.close();
+            return;
+        }
+        
+        if (taskType === 'calibration_only') {
+            sendSessionResult({
+                status: 'success',
+                task: 'calibration_only',
+                ...validationReportData
+            });
+        } else if (taskType === 'smooth_pursuit') {
+            startSmoothPursuitTask();
+        } else if (taskType === 'sternberg_task') {
+            startSternbergTask();
+        }
+    });
+
+    // ----------------------------------------------------
+
+    // ----------------------------------------------------
+    // MODULE 1: SMOOTH PURSUIT TASK SEQUENCER
+    // ----------------------------------------------------
+    function startSmoothPursuitTask() {
+        document.getElementById('status-text').innerText = "Running Smooth Pursuit demo...";
+        smoothPursuitLog = [];
+        smoothPursuitState.active = true;
+        smoothPursuitState.tStart = performance.now();
+        
+        // Ensure body background is gradient during active tracking
+        document.body.style.background = 'linear-gradient(135deg, #E2F1FD 0%, #EBFDF9 50%, #F9F3FF 100%)';
+        
+        // Define trajectories
+        const trajectories = ['horizontal', 'vertical', 'diagonal', 'circular', 'figure8', 'zigzag'];
+        let currentTrajIdx = 0;
+        
+        function runNextTrajectory() {
+            if (currentTrajIdx >= trajectories.length) {
+                // Done! Finish
+                smoothPursuitState.active = false;
+                taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+                document.getElementById('status-text').innerText = "Smooth pursuit completed.";
+                
+                // Restore body background color
+                document.body.style.background = '';
+                
+                // Submit raw CSV format back to python
+                sendSessionResult({
+                    status: 'success',
+                    task: 'smooth_pursuit',
+                    raw_log: smoothPursuitLog,
+                    calibration_diagnostics: validationReportData
+                });
+                return;
+            }
+            
+            smoothPursuitState.trajectory = trajectories[currentTrajIdx];
+            let trajStart = performance.now();
+            let duration = 6000; // 6 seconds per trajectory
+            
+            // Track movement direction
+            window.spPrevX = undefined;
+            window.spFacingRight = true;
+            
+            let frameInterval = setInterval(() => {
+                let elapsed = performance.now() - trajStart;
+                if (elapsed >= duration) {
+                    clearInterval(frameInterval);
+                    currentTrajIdx++;
+                    runNextTrajectory();
+                    return;
+                }
+                
+                let target = getTargetCoordinates(smoothPursuitState.trajectory, elapsed, duration);
+                smoothPursuitState.target = target;
+                
+                // Determine direction
+                if (typeof window.spPrevX === 'undefined') window.spPrevX = target.x;
+                let dx = target.x - window.spPrevX;
+                if (dx > 0.2) {
+                    window.spFacingRight = true;
+                } else if (dx < -0.2) {
+                    window.spFacingRight = false;
+                }
+                window.spPrevX = target.x;
+                
+                // Draw target cat
+                taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+                taskCtx.save();
+                const size = 90; // 80-100px display size
+                taskCtx.translate(target.x, target.y);
+                if (!window.spFacingRight) {
+                    taskCtx.scale(-1, 1);
+                }
+                // Apply active hue-rotate filter (blue/cyan)
+                taskCtx.filter = 'hue-rotate(140deg) saturate(1.5) drop-shadow(0 0 8px rgba(0, 229, 255, 0.8))';
+                taskCtx.drawImage(catImage, -size/2, -size/2, size, size);
+                taskCtx.restore();
+                
+                // Record frame
+                const gaze = predictGaze() || { x: NaN, y: NaN };
+                
+                smoothPursuitLog.push({
+                    timestamp: new Date().getTime(),
+                    trial: currentTrajIdx + 1,
+                    trial_phase: smoothPursuitState.trajectory,
+                    gaze_x: gaze.x,
+                    gaze_y: gaze.y,
+                    left_iris_radius: latestGazeOffset ? latestGazeOffset.leftIrisRadius : NaN,
+                    right_iris_radius: latestGazeOffset ? latestGazeOffset.rightIrisRadius : NaN,
+                    head_pose: latestGazeOffset ? latestGazeOffset.head_pose : [NaN, NaN, NaN],
+                    blink_state: latestGazeOffset ? latestGazeOffset.blinkState : 0,
+                    target_x: target.x,
+                    target_y: target.y
+                });
+                
+            }, 16); // ~60fps
+        }
+        
+        runNextTrajectory();
+    }
+    
+    function getTargetCoordinates(type, elapsed, duration) {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        const rx = window.innerWidth * 0.35;
+        const ry = window.innerHeight * 0.35;
+        const t = (elapsed / duration) * 2 * Math.PI; // normalized cycle
+        
+        switch (type) {
+            case 'horizontal':
+                return { x: cx + rx * Math.cos(t), y: cy };
+            case 'vertical':
+                return { x: cx, y: cy + ry * Math.cos(t) };
+            case 'diagonal':
+                return { x: cx + rx * Math.cos(t), y: cy + ry * Math.cos(t) };
+            case 'circular':
+                return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) };
+            case 'figure8':
+                return { x: cx + rx * Math.sin(t), y: cy + ry * Math.sin(2*t) / 2 };
+            case 'zigzag':
+                // triangle wave
+                let ratio = (elapsed % 1500) / 1500;
+                let direction = Math.floor(elapsed / 1500) % 2 === 0 ? 1 : -1;
+                let x = cx - rx + 2*rx * (elapsed / duration);
+                let y = cy + ry * (direction === 1 ? -1 + 2*ratio : 1 - 2*ratio);
+                return { x: x, y: y };
+            default:
+                return { x: cx, y: cy };
+        }
+    }
+
+    // ----------------------------------------------------
+    // MODULE 2: STERNBERG TASK SEQUENCER
+    // ----------------------------------------------------
+    function startSternbergTask() {
+        document.getElementById('status-text').innerText = "Starting Sternberg memory task...";
+        sternbergLog = [];
+        responsesList = [];
+        sternbergState.active = true;
+        sternbergState.trialIdx = 0;
+        
+        // Ensure body background is gradient during active tracking
+        document.body.style.background = 'radial-gradient(circle at center, #1E293B 0%, #0B1220 100%)';
+        
+        // Draw empty grid behind instructions modal
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+        draw4x4Grid(cx, cy);
+        
+        // Show instructions modal
+        const sim = document.getElementById('sternberg-instructions-modal');
+        if (sim) {
+            sim.style.display = 'block';
+            sim.style.opacity = '1';
+        }
+        
+        const ssb = document.getElementById('sternberg-start-btn');
+        if (ssb) {
+            ssb.onclick = () => {
+                if (sim) sim.style.display = 'none';
+                runSternbergCountdown();
+            };
+        }
+    }
+    
+    function runSternbergCountdown() {
+        let count = 3;
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        
+        let interval = setInterval(() => {
+            taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+            
+            // Draw empty grid
+            draw4x4Grid(cx, cy);
+            
+            // Draw countdown
+            taskCtx.fillStyle = '#FFFFFF';
+            taskCtx.font = "bold 64px sans-serif";
+            taskCtx.textAlign = "center";
+            taskCtx.textBaseline = "middle";
+            
+            if (count > 0) {
+                taskCtx.fillText(count.toString(), cx, cy);
+                count--;
+            } else if (count === 0) {
+                taskCtx.fillStyle = '#00E5FF';
+                taskCtx.fillText("Begin!", cx, cy);
+                count--;
+            } else {
+                clearInterval(interval);
+                runNextSternbergTrial();
+            }
+        }, 800);
+    }
+    
+    function runNextSternbergTrial() {
+        if (sternbergState.trialIdx >= 10) {
+            // Sternberg task complete!
+            sternbergState.active = false;
+            taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+            document.getElementById('status-text').innerText = "Task completed.";
+            
+            // Restore body background color
+            document.body.style.background = '';
+            
+            sendSessionResult({
+                status: 'success',
+                task: 'sternberg_task',
+                raw_log: sternbergLog,
+                responses: responsesList,
+                calibration_diagnostics: validationReportData
+            });
+            return;
+        }
+        
+        document.getElementById('status-text').innerText = `Running Trial ${sternbergState.trialIdx + 1} of 10...`;
+        
+        // Define trial configuration
+        const load = (sternbergState.trialIdx % 2 === 0) ? 1 : 2;
+        const distTypes = ['none', 'neutral', 'emotional', 'task_related'];
+        const distType = distTypes[sternbergState.trialIdx % 4];
+        
+        // Generate array items: positions on a 4x4 grid
+        const arrayItems = [];
+        for (let step = 0; step < 3; step++) {
+            // Get random items (1 or 2 dots per grid)
+            let dots = [];
+            while (dots.length < load) {
+                let cell = Math.floor(Math.random() * 16);
+                if (!dots.includes(cell)) dots.push(cell);
+            }
+            arrayItems.push(dots);
+        }
+        
+        // Determine correct answer (Yes/No whether probe dot matches any dot in memory)
+        const corrResponse = (Math.random() > 0.5) ? 1 : 0;
+        let probeCell = 0;
+        
+        if (corrResponse === 1) {
+            // Select one dot location from the arrays shown
+            const selectedArray = arrayItems[Math.floor(Math.random() * 3)];
+            probeCell = selectedArray[Math.floor(Math.random() * selectedArray.length)];
+        } else {
+            // Select a cell that was NEVER shown in the arrays
+            let flatShown = arrayItems.flat();
+            let available = [];
+            for (let c = 0; c < 16; c++) {
+                if (!flatShown.includes(c)) available.push(c);
+            }
+            probeCell = available[Math.floor(Math.random() * available.length)];
+        }
+        
+        currentTrialParams = {
+            trial_id: sternbergState.trialIdx + 1,
+            load: load,
+            distractor_type: distType,
+            array_items: arrayItems,
+            probe_cell: probeCell,
+            corr_response: corrResponse
+        };
+        
+        responseCaptured = false;
+        runTrialPhases();
+    }
+    
+    function runTrialPhases() {
+        const phases = [
+            { name: 'fixation1', duration: 500 },
+            { name: 'array1', duration: 2000 },
+            { name: 'fixation2', duration: 500 },
+            { name: 'array2', duration: 2000 },
+            { name: 'fixation3', duration: 500 },
+            { name: 'array3', duration: 2000 },
+            { name: 'distractor', duration: 1000 }, // Retention Interval: 1s
+            { name: 'probe', duration: 5000 },       // Probe Display: 5s max
+            { name: 'feedback', duration: 800 }
+        ];
+        
+        let phaseIdx = 0;
+        
+        function transitionToNextPhase() {
+            if (phaseIdx >= phases.length) {
+                // Trial done! Show transition screen, then move to next trial
+                const cx = window.innerWidth / 2;
+                const cy = window.innerHeight / 2;
+                taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+                draw4x4Grid(cx, cy);
+                taskCtx.fillStyle = '#FFFFFF';
+                taskCtx.font = "26px sans-serif";
+                taskCtx.textAlign = "center";
+                taskCtx.textBaseline = "middle";
+                taskCtx.fillText("Preparing next trial...", cx, cy);
+                
+                setTimeout(() => {
+                    sternbergState.trialIdx++;
+                    runNextSternbergTrial();
+                }, 650);
+                return;
+            }
+            
+            let phase = phases[phaseIdx];
+            sternbergState.phase = phase.name;
+            trialPhaseStart = performance.now();
+            
+            // Draw phase components
+            drawSternbergPhase(phase.name);
+            
+            // Log frame loop for this phase
+            let frameTimer = setInterval(() => {
+                const gaze = predictGaze() || { x: NaN, y: NaN };
+                
+                sternbergLog.push({
+                    timestamp: new Date().getTime(),
+                    trial: currentTrialParams.trial_id,
+                    trial_phase: phase.name,
+                    gaze_x: gaze.x,
+                    gaze_y: gaze.y,
+                    left_iris_radius: latestGazeOffset ? latestGazeOffset.leftIrisRadius : NaN,
+                    right_iris_radius: latestGazeOffset ? latestGazeOffset.rightIrisRadius : NaN,
+                    head_pose: latestGazeOffset ? latestGazeOffset.head_pose : [NaN, NaN, NaN],
+                    blink_state: latestGazeOffset ? latestGazeOffset.blinkState : 0,
+                    target_x: sternbergState.target.x,
+                    target_y: sternbergState.target.y
+                });
+                
+                if (phase.name === 'probe') {
+                    let elapsed = performance.now() - trialPhaseStart;
+                    let remaining = Math.max(0, Math.ceil((5000 - elapsed) / 1000));
+                    drawSternbergPhase('probe', remaining);
+                }
+            }, 25); // log every 25ms (~40Hz)
+            
+            if (phase.name === 'probe') {
+                // Setup keyboard/mouse handlers for Yes/No buttons
+                // Yes is Key 'Y' or left side button, No is Key 'N' or right side button
+                window.onkeydown = (e) => {
+                    if (responseCaptured) return;
+                    if (e.key.toLowerCase() === 'y') {
+                        recordResponse(1);
+                    } else if (e.key.toLowerCase() === 'n') {
+                        recordResponse(0);
+                    }
+                };
+                
+                // Add click handler regions inside canvas
+                window.onclick = (e) => {
+                    if (responseCaptured || sternbergState.phase !== 'probe') return;
+                    const cx = window.innerWidth / 2;
+                    const cy = window.innerHeight / 2;
+                    // Left button box (Yes)
+                    if (e.clientX >= cx - 200 && e.clientX <= cx - 40 && e.clientY >= cy + 180 && e.clientY <= cy + 240) {
+                        recordResponse(1);
+                    }
+                    // Right button box (No)
+                    if (e.clientX >= cx + 40 && e.clientX <= cx + 200 && e.clientY >= cy + 180 && e.clientY <= cy + 240) {
+                        recordResponse(0);
+                    }
+                };
+                
+                trialTimeout = setTimeout(() => {
+                    // Timeout (omission)
+                    recordResponse(-1);
+                }, phase.duration);
+                
+            } else {
+                // Auto transition for timed phases
+                setTimeout(() => {
+                    clearInterval(frameTimer);
+                    phaseIdx++;
+                    transitionToNextPhase();
+                }, phase.duration);
+            }
+            
+            function recordResponse(resp) {
+                if (responseCaptured) return;
+                responseCaptured = true;
+                clearInterval(frameTimer);
+                clearTimeout(trialTimeout);
+                
+                let rt = performance.now() - trialPhaseStart;
+                let accuracy = 0;
+                
+                if (resp === -1) {
+                    rt = 0; // Omission
+                    accuracy = 0;
+                } else {
+                    accuracy = (resp === currentTrialParams.corr_response) ? 1 : 0;
+                }
+                
+                responsesList.push({
+                    trial: currentTrialParams.trial_id,
+                    load: currentTrialParams.load,
+                    distractor_type: currentTrialParams.distractor_type,
+                    corr_response: currentTrialParams.corr_response,
+                    user_response: resp,
+                    accuracy: accuracy,
+                    reaction_time_ms: rt
+                });
+                
+                // Keep record of response values for visual feedback rendering
+                currentTrialParams.user_accuracy = accuracy;
+                currentTrialParams.user_rt = rt;
+                
+                // Transition to feedback immediately
+                phaseIdx++; // index of feedback phase
+                transitionToNextPhase();
+            }
+        }
+        
+        transitionToNextPhase();
+    }
+    
+    function drawSternbergPhase(phase, timeRemaining = 5) {
+        taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+        
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        
+        // Draw fixation cross
+        if (phase.startsWith('fixation')) {
+            draw4x4Grid(cx, cy);
+            
+            taskCtx.strokeStyle = '#FFFFFF';
+            taskCtx.lineWidth = 4;
+            taskCtx.beginPath();
+            taskCtx.moveTo(cx - 20, cy);
+            taskCtx.lineTo(cx + 20, cy);
+            taskCtx.moveTo(cx, cy - 20);
+            taskCtx.lineTo(cx, cy + 20);
+            taskCtx.stroke();
+            
+            sternbergState.target = { x: cx, y: cy };
+        }
+        
+        // Draw Dot array (4x4 Grid with dots)
+        else if (phase.startsWith('array')) {
+            const arrIdx = parseInt(phase.replace('array', '')) - 1;
+            const dots = currentTrialParams.array_items[arrIdx];
+            
+            draw4x4Grid(cx, cy);
+            
+            // Draw cats in cell centers
+            dots.forEach(cell => {
+                let coords = getCellCoords(cx, cy, cell);
+                taskCtx.save();
+                const sternbergSize = 48; // perfect size inside cells
+                taskCtx.translate(coords.x, coords.y);
+                taskCtx.filter = 'hue-rotate(140deg) saturate(1.5) drop-shadow(0 0 4px rgba(0, 229, 255, 0.8))';
+                taskCtx.drawImage(catImage, -sternbergSize/2, -sternbergSize/2, sternbergSize, sternbergSize);
+                taskCtx.restore();
+            });
+            
+            // Gaze target is center of gravity of dots
+            let sumX = 0, sumY = 0;
+            dots.forEach(cell => {
+                let coords = getCellCoords(cx, cy, cell);
+                sumX += coords.x;
+                sumY += coords.y;
+            });
+            sternbergState.target = { x: sumX / dots.length, y: sumY / dots.length };
+        }
+        
+        // Draw Distractor image locally using canvas graphics
+        else if (phase === 'distractor') {
+            const type = currentTrialParams.distractor_type;
+            
+            if (type === 'neutral') {
+                // Neutral: simple medium gray solid rectangle
+                taskCtx.fillStyle = '#484F58';
+                taskCtx.fillRect(cx - 150, cy - 150, 300, 300);
+            } 
+            else if (type === 'task_related') {
+                // Task-related: a complex grid cross layout
+                taskCtx.strokeStyle = '#58A6FF';
+                taskCtx.lineWidth = 2;
+                for (let i = -100; i <= 100; i += 20) {
+                    taskCtx.beginPath();
+                    taskCtx.moveTo(cx + i, cy - 150);
+                    taskCtx.lineTo(cx + i, cy + 150);
+                    taskCtx.moveTo(cx - 150, cy + i);
+                    taskCtx.lineTo(cx + 150, cy + i);
+                    taskCtx.stroke();
+                }
+            } 
+            else if (type === 'emotional') {
+                // Emotional: Draw a large bright red pulsing broken heart emoji
+                taskCtx.font = "80px Arial";
+                taskCtx.textAlign = "center";
+                taskCtx.textBaseline = "middle";
+                taskCtx.fillText("💔", cx, cy);
+            }
+            
+            sternbergState.target = { x: cx, y: cy };
+        }
+        
+        // Draw Probe Dot and answer buttons
+        else if (phase === 'probe') {
+            const cell = currentTrialParams.probe_cell;
+            
+            draw4x4Grid(cx, cy);
+            
+            // Draw single yellow probe cat
+            let coords = getCellCoords(cx, cy, cell);
+            taskCtx.save();
+            const sternbergSize = 48;
+            taskCtx.translate(coords.x, coords.y);
+            taskCtx.filter = 'saturate(2.0) drop-shadow(0 0 4px rgba(255, 215, 0, 0.8))';
+            taskCtx.drawImage(catImage, -sternbergSize/2, -sternbergSize/2, sternbergSize, sternbergSize);
+            taskCtx.restore();
+            
+            // Draw YES / NO boxes on screen using premium glassmorphism buttons
+            // Left box (YES)
+            drawRoundedRect(taskCtx, cx - 200, cy + 180, 160, 60, 12, 'rgba(34, 197, 94, 0.15)', 'rgba(34, 197, 94, 0.6)', 2);
+            taskCtx.fillStyle = '#22C55E';
+            taskCtx.font = "bold 28px sans-serif";
+            taskCtx.textAlign = "center";
+            taskCtx.textBaseline = "middle";
+            taskCtx.fillText("YES [Y]", cx - 120, cy + 210);
+            
+            // Right box (NO)
+            drawRoundedRect(taskCtx, cx + 40, cy + 180, 160, 60, 12, 'rgba(239, 68, 68, 0.15)', 'rgba(239, 68, 68, 0.6)', 2);
+            taskCtx.fillStyle = '#EF4444';
+            taskCtx.fillText("NO [N]", cx + 120, cy + 210);
+            
+            taskCtx.fillStyle = '#FFFFFF';
+            taskCtx.font = "bold 26px sans-serif";
+            taskCtx.fillText("Was this location shown in ANY array?", cx, cy - 220);
+            
+            // Draw response countdown timer
+            taskCtx.fillStyle = '#8B949E';
+            taskCtx.font = "bold 20px sans-serif";
+            taskCtx.fillText(`Time Remaining: ${timeRemaining}`, cx, cy + 265);
+            
+            sternbergState.target = coords;
+        }
+        
+        // Draw Feedback
+        else if (phase === 'feedback') {
+            draw4x4Grid(cx, cy);
+            
+            const acc = currentTrialParams.user_accuracy;
+            const rt = currentTrialParams.user_rt;
+            
+            taskCtx.textAlign = "center";
+            taskCtx.textBaseline = "middle";
+            
+            if (rt === 0) {
+                taskCtx.fillStyle = '#EF4444';
+                taskCtx.font = "bold 42px sans-serif";
+                taskCtx.fillText("TIMEOUT!", cx, cy);
+            } else if (acc === 1) {
+                taskCtx.fillStyle = '#22C55E';
+                taskCtx.font = "bold 42px sans-serif";
+                taskCtx.fillText("CORRECT", cx, cy - 20);
+                taskCtx.fillStyle = '#8B949E';
+                taskCtx.font = "bold 26px sans-serif";
+                taskCtx.fillText(`${Math.round(rt)} ms`, cx, cy + 30);
+            } else {
+                taskCtx.fillStyle = '#EF4444';
+                taskCtx.font = "bold 42px sans-serif";
+                taskCtx.fillText("INCORRECT", cx, cy - 20);
+                taskCtx.fillStyle = '#8B949E';
+                taskCtx.font = "bold 26px sans-serif";
+                taskCtx.fillText(`${Math.round(rt)} ms`, cx, cy + 30);
+            }
+            
+            sternbergState.target = { x: cx, y: cy };
+        }
+    }
+    
+    function draw4x4Grid(cx, cy) {
+        const cellSize = 80;
+        const gridOffset = cellSize * 2;
+        
+        taskCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        taskCtx.lineWidth = 1;
+        
+        // Draw lines
+        for (let i = 0; i <= 4; i++) {
+            let offset = -gridOffset + i * cellSize;
+            // Vertical
+            taskCtx.beginPath();
+            taskCtx.moveTo(cx + offset, cy - gridOffset);
+            taskCtx.lineTo(cx + offset, cy + gridOffset);
+            taskCtx.stroke();
+            // Horizontal
+            taskCtx.beginPath();
+            taskCtx.moveTo(cx - gridOffset, cy + offset);
+            taskCtx.lineTo(cx + gridOffset, cy + offset);
+            taskCtx.stroke();
+        }
+    }
+    
+    function drawRoundedRect(ctx, x, y, width, height, radius, fill, stroke, strokeWidth) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        if (fill) {
+            ctx.fillStyle = fill;
+            ctx.fill();
+        }
+        if (stroke) {
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = strokeWidth || 1;
+            ctx.stroke();
+        }
+    }
+    
+    function getCellCoords(cx, cy, cellIdx) {
+        const cellSize = 80;
+        const gridOffset = cellSize * 2;
+        const row = Math.floor(cellIdx / 4);
+        const col = cellIdx % 4;
+        
+        const x = cx - gridOffset + col * cellSize + cellSize/2;
+        const y = cy - gridOffset + row * cellSize + cellSize/2;
+        
+        return { x: x, y: y };
+    }
+
+    // ----------------------------------------------------
+    // COMMUNICATIONS WITH STREAMLIT
+    // ----------------------------------------------------
+    
+    // Listen for custom parameters sent by Streamlit
+    window.addEventListener('message', (event) => {
+        const msg = event.data;
+        if (msg.type === 'streamlit:render') {
+            const args = msg.args;
+            if (args.task_type) {
+                taskType = args.task_type;
+                console.log("Setting task type:", taskType);
+            }
+            if (args.calibration_thresholds) {
+                calThresholds = args.calibration_thresholds;
+                console.log("Loaded thresholds:", calThresholds);
+            }
+        }
+    });
+
+    // Notify Streamlit that the component has rendered and is ready
+    window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: "streamlit:componentReady",
+        apiVersion: 1
+    }, "*");
+
+    // Initialize tab listeners and resize frame dynamically on startup
+    initTabs();
+    updateStreamlitFrameHeight();
+
+    function sendSessionResult(result) {
+        console.log("Posting result back to Streamlit:", result);
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: result
+        }, "*");
+    }
+</script>
+
+</body>
+</html>

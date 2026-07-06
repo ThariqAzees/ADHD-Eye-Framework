@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gaze Tracker Component</title>
+    <!-- MediaPipe CDN Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0E1117;
+            color: #FFFFFF;
+            font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Glassmorphism Card style */
+        .card {
+            background: rgba(22, 27, 34, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        h2 {
+            color: #00E5FF;
+            margin-top: 0;
+            font-weight: 600;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.5;
+            color: #C9D1D9;
+        }
+
+        .btn {
+            background-color: #00E5FF;
+            color: #0E1117;
+            border: none;
+            padding: 12px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px 0 rgba(0, 229, 255, 0.4);
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px 0 rgba(0, 229, 255, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 2px solid #58A6FF;
+            color: #58A6FF;
+            box-shadow: none;
+            margin-left: 10px;
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(88, 166, 255, 0.1);
+            box-shadow: 0 4px 14px 0 rgba(88, 166, 255, 0.2);
+        }
+
+        /* Camera preview */
+        #webcam-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 160px;
+            height: 120px;
+            border-radius: 12px;
+            border: 2px solid #00E5FF;
+            overflow: hidden;
+            transform: scaleX(-1); /* mirror */
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 5;
+            background-color: #000;
+        }
+
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        /* Interactive Canvas covering screen */
+        #task-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            cursor: none;
+        }
+
+        /* Gaze Target marker */
+        .gaze-target {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #FF3366;
+            border: 4px solid #FFFFFF;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            transition: background-color 0.3s ease;
+        }
+
+        .gaze-target.calibrating {
+            background-color: #00E5FF;
+            animation: pulse 1s infinite alternate;
+        }
+
+        .gaze-target.validated {
+            background-color: #39FF14;
+        }
+
+        @keyframes pulse {
+            from { transform: translate(-50%, -50%) scale(1); }
+            to { transform: translate(-50%, -50%) scale(1.3); }
+        }
+
+        #gaze-cursor {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #39FF14;
+            box-shadow: 0 0 10px #39FF14;
+            transform: translate(-50%, -50%);
+            z-index: 30;
+            pointer-events: none;
+            display: none;
+        }
+
+        #status-text {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #C9D1D9;
+            z-index: 5;
+        }
+        
+        #unsupported-msg {
+            color: #FF7B72;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <!-- Camera View -->
+    <div id="webcam-container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="overlay"></canvas>
+    </div>
+
+    <!-- UI Cards -->
+    <div id="setup-card" class="card">
+        <h2>Webcam Eye-Tracking Setup</h2>
+        <p>This session requires camera access to track your eye movements. For best accuracy:</p>
+        <ul style="text-align: left; color: #C9D1D9; padding-left: 20px;">
+            <li>Ensure your face is well-lit from the front.</li>
+            <li>Align your head in the center of the camera.</li>
+            <li>Avoid turning your head; try to move only your eyes.</li>
+            <li>Maintain a distance of about 50-60cm from the screen.</li>
+        </ul>
+        <div id="unsupported-msg">MediaPipe is loading or failed to load. Please wait...</div>
+        <button id="start-btn" class="btn" disabled>Start Calibration</button>
+    </div>
+
+    <div id="validation-card" class="card" style="display: none;">
+        <h2>Calibration Completed</h2>
+        <p>Let's verify the tracking quality. Follow the green cursor with your eyes. The computed errors are:</p>
+        <div style="display: flex; justify-content: space-around; margin: 20px 0;">
+            <div>
+                <span style="display:block; font-size: 12px; color: #8B949E;">MEAN ERROR</span>
+                <span id="mean-err-val" style="font-size: 24px; font-weight: bold; color: #00E5FF;">--</span>
+            </div>
+            <div>
+                <span style="display:block; font-size: 12px; color: #8B949E;">MEDIAN ERROR</span>
+                <span id="median-err-val" style="font-size: 24px; font-weight: bold; color: #00E5FF;">--</span>
+            </div>
+            <div>
+                <span style="display:block; font-size: 12px; color: #8B949E;">QUALITY</span>
+                <span id="quality-val" style="font-size: 24px; font-weight: bold;">--</span>
+            </div>
+        </div>
+        <div id="recal-instructions" style="color: #FF7B72; display: none; margin-bottom: 20px;">
+            Calibration quality is poor. Please adjust your lighting/position and recalibrate.
+        </div>
+        <div>
+            <button id="recal-btn" class="btn btn-secondary">Recalibrate</button>
+            <button id="proceed-btn" class="btn" style="display: none;">Proceed</button>
+        </div>
+    </div>
+
+    <!-- Active Task Elements -->
+    <div id="gaze-target-marker" class="gaze-target" style="display: none;"></div>
+    <div id="gaze-cursor"></div>
+    <canvas id="task-canvas"></canvas>
+    
+    <div id="status-text">Initializing Face Mesh...</div>
+</div>
+
+<script>
+    // Streamlit Custom Component protocol variables
+    let taskType = 'calibration_only';
+    let calThresholds = { excellent: 50.0, good: 80.0, fair: 120.0 };
+    
+    // Gaze prediction calibration model weights (Polynomial Ridge Regression)
+    let wX = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let wY = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let isCalibrated = false;
+    
+    // Calibration parameters
+    let calibrationPoints = [];
+    let calibrationData = []; // { features: [1, dx, dy, dx^2, dy^2, dx*dy], target: [tx, ty] }
+    let currentCalPointIdx = 0;
+    
+    // Validation variables
+    let validationPoints = [];
+    let validationData = []; // { target: [x,y], gaze: [x,y] }
+    let currentValPointIdx = 0;
+    
+    // Smooth Pursuit variables
+    let smoothPursuitLog = [];
+    let smoothPursuitState = { active: false, tStart: 0, trajectory: '', target: {x: 0, y: 0} };
+    
+    // Sternberg Task variables
+    let sternbergLog = [];
+    let sternbergState = { active: false, trialIdx: 0, phase: 'idle', target: {x: NaN, y: NaN} };
+    let currentTrialParams = null;
+    let responseCaptured = false;
+    let trialTimeout = null;
+    let trialPhaseStart = 0;
+    let responsesList = [];
+    
+    // Face Mesh variables
+    let faceMeshLoaded = false;
+    let latestGazeOffset = null; // { dx_l, dy_l, dx_r, dy_r, ear, head_pose }
+    let videoElement = document.getElementById('webcam');
+    let overlayCanvas = document.getElementById('overlay');
+    let overlayCtx = overlayCanvas.getContext('2d');
+    let taskCanvas = document.getElementById('task-canvas');
+    let taskCtx = taskCanvas.getContext('2d');
+    
+    // Setup canvas sizes
+    function resizeCanvases() {
+        taskCanvas.width = window.innerWidth;
+        taskCanvas.height = window.innerHeight;
+        overlayCanvas.width = overlayCanvas.parentElement.clientWidth;
+        overlayCanvas.height = overlayCanvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvases);
+    resizeCanvases();
+
+    // Helper: Euclidean distance
+    function dist(p1, p2) {
+        return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+    }
+    
+    // Polynomial Feature expansion
+    function expandFeatures(dx, dy) {
+        return [1, dx, dy, dx * dx, dy * dy, dx * dy];
+    }
+    
+    // Dot product
+    function dotProduct(a, b) {
+        let sum = 0;
+        for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
+        return sum;
+    }
+
+    // MediaPipe face mesh result listener
+    function onResults(results) {
+        if (!faceMeshLoaded) {
+            faceMeshLoaded = true;
+            document.getElementById('status-text').innerText = "Webcam ready.";
+            document.getElementById('start-btn').disabled = false;
+        }
+
+        // Draw overlay face contours
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            const landmarks = results.multiFaceLandmarks[0];
+            
+            // Get screen pixel width of landmarks
+            const width = overlayCanvas.width;
+            const height = overlayCanvas.height;
+            
+            // Landmark points for Left Eye
+            const leftInner = landmarks[133];
+            const leftOuter = landmarks[33];
+            const leftIris = landmarks[468];
+            
+            // Landmark points for Right Eye
+            const rightInner = landmarks[362];
+            const rightOuter = landmarks[263];
+            const rightIris = landmarks[473];
+            
+            // Convert to screen dimensions
+            const pLI = { x: leftIris.x * width, y: leftIris.y * height };
+            const pRI = { x: rightIris.x * width, y: rightIris.y * height };
+            
+            const pLInner = { x: leftInner.x * width, y: leftInner.y * height };
+            const pLOuter = { x: leftOuter.x * width, y: leftOuter.y * height };
+            
+            const pRInner = { x: rightInner.x * width, y: rightInner.y * height };
+            const pROuter = { x: rightOuter.x * width, y: rightOuter.y * height };
+            
+            // Left eye width & center
+            const leftEyeCenter = { x: (pLInner.x + pLOuter.x)/2, y: (pLInner.y + pLOuter.y)/2 };
+            const leftEyeWidth = dist(pLInner, pLOuter);
+            
+            // Right eye width & center
+            const rightEyeCenter = { x: (pRInner.x + pROuter.x)/2, y: (pRInner.y + pROuter.y)/2 };
+            const rightEyeWidth = dist(pRInner, pROuter);
+            
+            // Compute relative offsets normalized by eye width
+            const dx_l = (pLI.x - leftEyeCenter.x) / leftEyeWidth;
+            const dy_l = (pLI.y - leftEyeCenter.y) / leftEyeWidth;
+            
+            const dx_r = (pRI.x - rightEyeCenter.x) / rightEyeWidth;
+            const dy_r = (pRI.y - rightEyeCenter.y) / rightEyeWidth;
+            
+            // EAR (Eye Aspect Ratio) for blink state
+            // Left eye vertical landmarks: 159 (upper), 145 (lower)
+            const pLUpper = { x: landmarks[159].x * width, y: landmarks[159].y * height };
+            const pLLower = { x: landmarks[145].x * width, y: landmarks[145].y * height };
+            const earL = dist(pLUpper, pLLower) / leftEyeWidth;
+            
+            // Right eye vertical landmarks: 386 (upper), 374 (lower)
+            const pRUpper = { x: landmarks[386].x * width, y: landmarks[386].y * height };
+            const pRLower = { x: landmarks[374].x * width, y: landmarks[374].y * height };
+            const earR = dist(pRUpper, pRLower) / rightEyeWidth;
+            
+            const ear = (earL + earR) / 2.0;
+            const blinkState = (ear < 0.16) ? 1 : 0;
+            
+            // Head pose estimation (geometric)
+            const noseTip = landmarks[1];
+            const chin = landmarks[152];
+            const forehead = landmarks[10];
+            const leftBound = landmarks[234];
+            const rightBound = landmarks[454];
+            
+            // Normalize nose horizontal position within facial bounds (Yaw)
+            const yaw = (noseTip.x - leftBound.x) / (rightBound.x - leftBound.x) - 0.5;
+            // Normalize vertical position (Pitch)
+            const pitch = (noseTip.y - forehead.y) / (chin.y - forehead.y) - 0.5;
+            // Roll
+            const roll = Math.atan2((landmarks[263].y - landmarks[33].y), (landmarks[263].x - landmarks[33].x));
+            
+            // Pupil sizes in pixels
+            // Left Iris boundary landmark 469, 471
+            const pLBoundary1 = { x: landmarks[469].x * width, y: landmarks[469].y * height };
+            const pLBoundary2 = { x: landmarks[471].x * width, y: landmarks[471].y * height };
+            const leftIrisRadius = dist(pLBoundary1, pLBoundary2) / 2.0;
+            
+            const pRBoundary1 = { x: landmarks[474].x * width, y: landmarks[474].y * height };
+            const pRBoundary2 = { x: landmarks[476].x * width, y: landmarks[476].y * height };
+            const rightIrisRadius = dist(pRBoundary1, pRBoundary2) / 2.0;
+            
+            latestGazeOffset = {
+                dx_l: dx_l, dy_l: dy_l,
+                dx_r: dx_r, dy_r: dy_r,
+                ear: ear,
+                blinkState: blinkState,
+                head_pose: [yaw, pitch, roll],
+                leftIrisRadius: leftIrisRadius,
+                rightIrisRadius: rightIrisRadius
+            };
+            
+            // Draw points on canvas
+            overlayCtx.fillStyle = "#39FF14";
+            overlayCtx.beginPath();
+            overlayCtx.arc(pLI.x, pLI.y, 2, 0, 2*Math.PI);
+            overlayCtx.arc(pRI.x, pRI.y, 2, 0, 2*Math.PI);
+            overlayCtx.fill();
+        } else {
+            latestGazeOffset = null;
+        }
+    }
+
+    // Initialize MediaPipe Face Mesh
+    const faceMesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+
+    faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+
+    faceMesh.onResults(onResults);
+
+    // Setup camera using MediaPipe utils
+    const camera = new Camera(videoElement, {
+        onFrame: async () => {
+            await faceMesh.send({ image: videoElement });
+        },
+        width: 640,
+        height: 480
+    });
+    
+    // Request permission and start camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(() => {
+            camera.start();
+        })
+        .catch(err => {
+            console.error("Camera error:", err);
+            document.getElementById('status-text').innerText = "Webcam access denied.";
+            document.getElementById('unsupported-msg').style.display = "block";
+            document.getElementById('unsupported-msg').innerText = "Webcam access is required for eye tracking. Please enable permissions.";
+        });
+
+    // Solve Polynomial Ridge Regression (L2 regularization) via Gradient Descent
+    // Helper function to solve A * x = B using Gaussian Elimination with partial pivoting
+    function solveLinearSystem(A, B) {
+        let n = A.length;
+        for (let i = 0; i < n; i++) {
+            // Pivot search
+            let maxEl = Math.abs(A[i][i]);
+            let maxRow = i;
+            for (let k = i + 1; k < n; k++) {
+                if (Math.abs(A[k][i]) > maxEl) {
+                    maxEl = Math.abs(A[k][i]);
+                    maxRow = k;
+                }
+            }
+
+            // Swap current row with pivot row
+            for (let k = i; k < n; k++) {
+                let tmp = A[maxRow][k];
+                A[maxRow][k] = A[i][k];
+                A[i][k] = tmp;
+            }
+            let tmp = B[maxRow];
+            B[maxRow] = B[i];
+            B[i] = tmp;
+
+            // Check for singular matrix
+            if (Math.abs(A[i][i]) < 1e-12) {
+                A[i][i] = 1e-12; // Avoid divide by zero
+            }
+
+            // Eliminate column below pivot
+            for (let k = i + 1; k < n; k++) {
+                let c = -A[k][i] / A[i][i];
+                for (let j = i; j < n; j++) {
+                    if (i === j) {
+                        A[k][j] = 0;
+                    } else {
+                        A[k][j] += c * A[i][j];
+                    }
+                }
+                B[k] += c * B[i];
+            }
+        }
+
+        // Back-substitution
+        let x = new Array(n).fill(0);
+        for (let i = n - 1; i >= 0; i--) {
+            x[i] = B[i] / A[i][i];
+            for (let k = i - 1; k >= 0; k--) {
+                B[k] -= A[k][i] * x[i];
+            }
+        }
+        return x;
+    }
+
+    // Solve Polynomial Ridge Regression (L2 regularization) analytically via Normal Equations
+    function fitGazeModel() {
+        if (calibrationData.length === 0) return;
+        
+        let lambda = 0.001; // L2 Regularization penalty
+        
+        // Initialize A (6x6 matrix) and B (6x1 column vectors)
+        let AX = Array(6).fill(0).map(() => Array(6).fill(0));
+        let AY = Array(6).fill(0).map(() => Array(6).fill(0));
+        let BX = Array(6).fill(0);
+        let BY = Array(6).fill(0);
+        
+        // Accumulate Normal Equation terms: X^T * X and X^T * Y
+        for (let i = 0; i < calibrationData.length; i++) {
+            let feat = calibrationData[i].features; // length 6
+            let target = calibrationData[i].target; // length 2: [tx, ty]
+            
+            for (let r = 0; r < 6; r++) {
+                for (let c = 0; c < 6; c++) {
+                    let term = feat[r] * feat[c];
+                    AX[r][c] += term;
+                    AY[r][c] += term;
+                }
+                BX[r] += feat[r] * target[0];
+                BY[r] += feat[r] * target[1];
+            }
+        }
+        
+        // Add Ridge L2 penalty to diagonal (excluding bias term at index 0)
+        for (let r = 1; r < 6; r++) {
+            AX[r][r] += lambda;
+            AY[r][r] += lambda;
+        }
+        
+        try {
+            // Solve analytically
+            wX = solveLinearSystem(AX, BX);
+            wY = solveLinearSystem(AY, BY);
+            isCalibrated = true;
+            console.log("Calibration complete. Weights fitted analytically.", wX, wY);
+        } catch (e) {
+            console.error("Analytical fit failed, using default fallback weights:", e);
+            wX = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
+            wY = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0];
+            isCalibrated = true;
+        }
+    }
+
+    // Predict gaze coordinates (X, Y) relative to the screen dimensions
+    function predictGaze() {
+        if (!latestGazeOffset || !isCalibrated) return null;
+        
+        const avgDx = (latestGazeOffset.dx_l + latestGazeOffset.dx_r) / 2.0;
+        const avgDy = (latestGazeOffset.dy_l + latestGazeOffset.dy_r) / 2.0;
+        
+        const feat = expandFeatures(avgDx, avgDy);
+        
+        const px = dotProduct(feat, wX) * window.innerWidth;
+        const py = dotProduct(feat, wY) * window.innerHeight;
+        
+        // Clamp to screen bounds
+        const gazeX = Math.max(0, Math.min(window.innerWidth, px));
+        const gazeY = Math.max(0, Math.min(window.innerHeight, py));
+        
+        return { x: gazeX, y: gazeY };
+    }
+
+    // Draw gaze cursor during validation
+    let validationInterval = null;
+    function runGazeLoop() {
+        if (isCalibrated) {
+            const gaze = predictGaze();
+            const cursor = document.getElementById('gaze-cursor');
+            if (gaze && (validationInterval || smoothPursuitState.active || sternbergState.active)) {
+                cursor.style.display = 'block';
+                cursor.style.left = `${gaze.x}px`;
+                cursor.style.top = `${gaze.y}px`;
+            } else {
+                cursor.style.display = 'none';
+            }
+        }
+        requestAnimationFrame(runGazeLoop);
+    }
+    runGazeLoop();
+
+    // ----------------------------------------------------
+    // FLOW & SEQUENCERS
+    // ----------------------------------------------------
+    
+    // Start calibration sequencer
+    document.getElementById('start-btn').addEventListener('click', () => {
+        document.getElementById('setup-card').style.display = 'none';
+        document.getElementById('status-text').innerText = "Calibrating... Please look at the dot.";
+        startCalibration();
+    });
+
+    function startCalibration() {
+        // Define 9-point grid in relative coordinates
+        calibrationPoints = [
+            { x: 0.1, y: 0.1 }, { x: 0.5, y: 0.1 }, { x: 0.9, y: 0.1 },
+            { x: 0.1, y: 0.5 }, { x: 0.5, y: 0.5 }, { x: 0.9, y: 0.5 },
+            { x: 0.1, y: 0.9 }, { x: 0.5, y: 0.9 }, { x: 0.9, y: 0.9 }
+        ];
+        
+        // Shuffle points to prevent adaptation order bias
+        calibrationPoints.sort(() => Math.random() - 0.5);
+        
+        currentCalPointIdx = 0;
+        calibrationData = [];
+        showNextCalibrationPoint();
+    }
+
+    function showNextCalibrationPoint() {
+        if (currentCalPointIdx >= calibrationPoints.length) {
+            // Calibration complete! Fit weights
+            document.getElementById('gaze-target-marker').style.display = 'none';
+            fitGazeModel();
+            startValidation();
+            return;
+        }
+        
+        const pt = calibrationPoints[currentCalPointIdx];
+        const screenX = pt.x * window.innerWidth;
+        const screenY = pt.y * window.innerHeight;
+        
+        const marker = document.getElementById('gaze-target-marker');
+        marker.style.display = 'block';
+        marker.style.left = `${screenX}px`;
+        marker.style.top = `${screenY}px`;
+        marker.className = 'gaze-target'; // reset
+        
+        // Wait 1.0s for eye adjustment, then turn blue/pulsing and collect data for 1.0s
+        setTimeout(() => {
+            marker.classList.add('calibrating');
+            
+            // Collect data points every 50ms for 1.0s
+            let collectInterval = setInterval(() => {
+                if (latestGazeOffset) {
+                    const avgDx = (latestGazeOffset.dx_l + latestGazeOffset.dx_r) / 2.0;
+                    const avgDy = (latestGazeOffset.dy_l + latestGazeOffset.dy_r) / 2.0;
+                    calibrationData.push({
+                        features: expandFeatures(avgDx, avgDy),
+                        target: [pt.x, pt.y] // relative target coordinates
+                    });
+                }
+            }, 50);
+            
+            setTimeout(() => {
+                clearInterval(collectInterval);
+                currentCalPointIdx++;
+                showNextCalibrationPoint();
+            }, 1000);
+            
+        }, 1000);
+    }
+
+    // Gaze Validation Sequencer
+    function startValidation() {
+        document.getElementById('status-text').innerText = "Validating calibration...";
+        validationPoints = [
+            { x: 0.3, y: 0.3 }, { x: 0.7, y: 0.3 },
+            { x: 0.3, y: 0.7 }, { x: 0.7, y: 0.7 },
+            { x: 0.5, y: 0.5 }
+        ];
+        currentValPointIdx = 0;
+        validationData = [];
+        showNextValidationPoint();
+    }
+
+    function showNextValidationPoint() {
+        if (currentValPointIdx >= validationPoints.length) {
+            // Process validation errors
+            evaluateValidationQuality();
+            return;
+        }
+        
+        const pt = validationPoints[currentValPointIdx];
+        const screenX = pt.x * window.innerWidth;
+        const screenY = pt.y * window.innerHeight;
+        
+        const marker = document.getElementById('gaze-target-marker');
+        marker.style.display = 'block';
+        marker.style.left = `${screenX}px`;
+        marker.style.top = `${screenY}px`;
+        marker.className = 'gaze-target validated';
+        
+        setTimeout(() => {
+            // Measure predictions over 1.0s
+            let checkInterval = setInterval(() => {
+                const gaze = predictGaze();
+                if (gaze) {
+                    validationData.push({
+                        target: [screenX, screenY],
+                        gaze: [gaze.x, gaze.y]
+                    });
+                }
+            }, 50);
+            
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                currentValPointIdx++;
+                showNextValidationPoint();
+            }, 1000);
+        }, 1000);
+    }
+
+    function evaluateValidationQuality() {
+        document.getElementById('gaze-target-marker').style.display = 'none';
+        
+        // Calculate Euclidean errors
+        let errors = validationData.map(d => {
+            return Math.sqrt(Math.pow(d.target[0] - d.gaze[0], 2) + Math.pow(d.target[1] - d.gaze[1], 2));
+        });
+        
+        if (errors.length === 0) {
+            errors = [999]; // Fallback if no points recorded
+        }
+        
+        errors.sort((a, b) => a - b);
+        
+        const meanErr = errors.reduce((a,b) => a+b, 0) / errors.length;
+        const medianErr = errors[Math.floor(errors.length / 2)];
+        const maxErr = errors[errors.length - 1];
+        
+        // Classify quality based on thresholds (excellent, good, fair)
+        let quality = "Poor";
+        let qualityColor = "#FF7B72";
+        let passes = false;
+        
+        if (meanErr < calThresholds.excellent) {
+            quality = "Excellent";
+            qualityColor = "#39FF14";
+            passes = true;
+        } else if (meanErr < calThresholds.good) {
+            quality = "Good";
+            qualityColor = "#58A6FF";
+            passes = true;
+        } else if (meanErr < calThresholds.fair) {
+            quality = "Fair";
+            qualityColor = "#D29922";
+            passes = true;
+        }
+        
+        document.getElementById('mean-err-val').innerText = `${Math.round(meanErr)}px`;
+        document.getElementById('median-err-val').innerText = `${Math.round(medianErr)}px`;
+        
+        const qEl = document.getElementById('quality-val');
+        qEl.innerText = quality;
+        qEl.style.color = qualityColor;
+        
+        document.getElementById('validation-card').style.display = 'block';
+        document.getElementById('status-text').innerText = `Calibration quality: ${quality}`;
+        
+        if (passes) {
+            document.getElementById('recal-instructions').style.display = 'none';
+            document.getElementById('proceed-btn').style.display = 'inline-block';
+        } else {
+            document.getElementById('recal-instructions').style.display = 'block';
+            document.getElementById('proceed-btn').style.display = 'none';
+        }
+    }
+
+    // Recalibrate trigger
+    document.getElementById('recal-btn').addEventListener('click', () => {
+        document.getElementById('validation-card').style.display = 'none';
+        startCalibration();
+    });
+
+    // Proceed trigger
+    document.getElementById('proceed-btn').addEventListener('click', () => {
+        document.getElementById('validation-card').style.display = 'none';
+        
+        // If this is calibration ONLY, finish here and send result to python
+        if (taskType === 'calibration_only') {
+            sendSessionResult({
+                status: 'success',
+                task: 'calibration_only',
+                mean_error: Math.round(validationData.reduce((sum, d) => sum + Math.sqrt(Math.pow(d.target[0]-d.gaze[0],2) + Math.pow(d.target[1]-d.gaze[1],2)), 0) / validationData.length),
+                median_error: Math.round(validationData.map(d => Math.sqrt(Math.pow(d.target[0]-d.gaze[0],2) + Math.pow(d.target[1]-d.gaze[1],2))).sort((a,b)=>a-b)[Math.floor(validationData.length/2)])
+            });
+        } else if (taskType === 'smooth_pursuit') {
+            startSmoothPursuitTask();
+        } else if (taskType === 'sternberg_task') {
+            startSternbergTask();
+        }
+    });
+
+    // ----------------------------------------------------
+    // MODULE 1: SMOOTH PURSUIT TASK SEQUENCER
+    // ----------------------------------------------------
+    function startSmoothPursuitTask() {
+        document.getElementById('status-text').innerText = "Running Smooth Pursuit demo...";
+        smoothPursuitLog = [];
+        smoothPursuitState.active = true;
+        smoothPursuitState.tStart = performance.now();
+        
+        // Define trajectories
+        const trajectories = ['horizontal', 'vertical', 'circular', 'figure8', 'zigzag'];
+        let currentTrajIdx = 0;
+        
+        function runNextTrajectory() {
+            if (currentTrajIdx >= trajectories.length) {
+                // Done! Finish
+                smoothPursuitState.active = false;
+                taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+                document.getElementById('status-text').innerText = "Smooth pursuit completed.";
+                
+                // Submit raw CSV format back to python
+                sendSessionResult({
+                    status: 'success',
+                    task: 'smooth_pursuit',
+                    raw_log: smoothPursuitLog
+                });
+                return;
+            }
+            
+            smoothPursuitState.trajectory = trajectories[currentTrajIdx];
+            let trajStart = performance.now();
+            let duration = 6000; // 6 seconds per trajectory
+            
+            let frameInterval = setInterval(() => {
+                let elapsed = performance.now() - trajStart;
+                if (elapsed >= duration) {
+                    clearInterval(frameInterval);
+                    currentTrajIdx++;
+                    runNextTrajectory();
+                    return;
+                }
+                
+                let target = getTargetCoordinates(smoothPursuitState.trajectory, elapsed, duration);
+                smoothPursuitState.target = target;
+                
+                // Draw target
+                taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+                taskCtx.fillStyle = '#00E5FF';
+                taskCtx.beginPath();
+                taskCtx.arc(target.x, target.y, 16, 0, 2*Math.PI);
+                taskCtx.fill();
+                
+                // Record frame
+                const gaze = predictGaze() || { x: NaN, y: NaN };
+                
+                smoothPursuitLog.push({
+                    timestamp: new Date().getTime(),
+                    trial: currentTrajIdx + 1,
+                    trial_phase: smoothPursuitState.trajectory,
+                    gaze_x: gaze.x,
+                    gaze_y: gaze.y,
+                    left_iris_radius: latestGazeOffset ? latestGazeOffset.leftIrisRadius : NaN,
+                    right_iris_radius: latestGazeOffset ? latestGazeOffset.rightIrisRadius : NaN,
+                    head_pose: latestGazeOffset ? latestGazeOffset.head_pose : [NaN, NaN, NaN],
+                    blink_state: latestGazeOffset ? latestGazeOffset.blinkState : 0,
+                    target_x: target.x,
+                    target_y: target.y
+                });
+                
+            }, 16); // ~60fps
+        }
+        
+        runNextTrajectory();
+    }
+    
+    function getTargetCoordinates(type, elapsed, duration) {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        const rx = window.innerWidth * 0.35;
+        const ry = window.innerHeight * 0.35;
+        const t = (elapsed / duration) * 2 * Math.PI; // normalized cycle
+        
+        switch (type) {
+            case 'horizontal':
+                return { x: cx + rx * Math.cos(t), y: cy };
+            case 'vertical':
+                return { x: cx, y: cy + ry * Math.cos(t) };
+            case 'circular':
+                return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) };
+            case 'figure8':
+                return { x: cx + rx * Math.sin(t), y: cy + ry * Math.sin(2*t) / 2 };
+            case 'zigzag':
+                // triangle wave
+                let ratio = (elapsed % 1500) / 1500;
+                let direction = Math.floor(elapsed / 1500) % 2 === 0 ? 1 : -1;
+                let x = cx - rx + 2*rx * (elapsed / duration);
+                let y = cy + ry * (direction === 1 ? -1 + 2*ratio : 1 - 2*ratio);
+                return { x: x, y: y };
+            default:
+                return { x: cx, y: cy };
+        }
+    }
+
+    // ----------------------------------------------------
+    // MODULE 2: STERNBERG TASK SEQUENCER
+    // ----------------------------------------------------
+    function startSternbergTask() {
+        document.getElementById('status-text').innerText = "Starting Sternberg memory task...";
+        sternbergLog = [];
+        responsesList = [];
+        sternbergState.active = true;
+        sternbergState.trialIdx = 0;
+        
+        // We will run 40 trials
+        // Balance: 1-dot vs 2-dot arrays
+        // Balance distractors: none, neutral, emotional, task_related
+        runNextSternbergTrial();
+    }
+    
+    function runNextSternbergTrial() {
+        if (sternbergState.trialIdx >= 40) {
+            // Sternberg task complete!
+            sternbergState.active = false;
+            taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+            document.getElementById('status-text').innerText = "Task completed.";
+            
+            sendSessionResult({
+                status: 'success',
+                task: 'sternberg_task',
+                raw_log: sternbergLog,
+                responses: responsesList
+            });
+            return;
+        }
+        
+        document.getElementById('status-text').innerText = `Running Trial ${sternbergState.trialIdx + 1} of 40...`;
+        
+        // Define trial configuration
+        const load = (sternbergState.trialIdx % 2 === 0) ? 1 : 2;
+        const distTypes = ['none', 'neutral', 'emotional', 'task_related'];
+        const distType = distTypes[sternbergState.trialIdx % 4];
+        
+        // Generate array items: positions on a 4x4 grid
+        const arrayItems = [];
+        for (let step = 0; step < 3; step++) {
+            // Get random items (1 or 2 dots per grid)
+            let dots = [];
+            while (dots.length < load) {
+                let cell = Math.floor(Math.random() * 16);
+                if (!dots.includes(cell)) dots.push(cell);
+            }
+            arrayItems.push(dots);
+        }
+        
+        // Determine correct answer (Yes/No whether probe dot matches any dot in memory)
+        const corrResponse = (Math.random() > 0.5) ? 1 : 0;
+        let probeCell = 0;
+        
+        if (corrResponse === 1) {
+            // Select one dot location from the arrays shown
+            const selectedArray = arrayItems[Math.floor(Math.random() * 3)];
+            probeCell = selectedArray[Math.floor(Math.random() * selectedArray.length)];
+        } else {
+            // Select a cell that was NEVER shown in the arrays
+            let flatShown = arrayItems.flat();
+            let available = [];
+            for (let c = 0; c < 16; c++) {
+                if (!flatShown.includes(c)) available.push(c);
+            }
+            probeCell = available[Math.floor(Math.random() * available.length)];
+        }
+        
+        currentTrialParams = {
+            trial_id: sternbergState.trialIdx + 1,
+            load: load,
+            distractor_type: distType,
+            array_items: arrayItems,
+            probe_cell: probeCell,
+            corr_response: corrResponse
+        };
+        
+        responseCaptured = false;
+        runTrialPhases();
+    }
+    
+    function runTrialPhases() {
+        const phases = [
+            { name: 'fixation1', duration: 500 },
+            { name: 'array1', duration: 750 },
+            { name: 'fixation2', duration: 500 },
+            { name: 'array2', duration: 750 },
+            { name: 'fixation3', duration: 500 },
+            { name: 'array3', duration: 750 },
+            { name: 'distractor', duration: 500 },
+            { name: 'probe', duration: 1500 }, // Wait up to 1.5s
+            { name: 'feedback', duration: 800 }
+        ];
+        
+        let phaseIdx = 0;
+        
+        function transitionToNextPhase() {
+            if (phaseIdx >= phases.length) {
+                // Trial done! Move to next trial
+                sternbergState.trialIdx++;
+                runNextSternbergTrial();
+                return;
+            }
+            
+            let phase = phases[phaseIdx];
+            sternbergState.phase = phase.name;
+            trialPhaseStart = performance.now();
+            
+            // Draw phase components
+            drawSternbergPhase(phase.name);
+            
+            // Log frame loop for this phase
+            let frameTimer = setInterval(() => {
+                const gaze = predictGaze() || { x: NaN, y: NaN };
+                
+                sternbergLog.push({
+                    timestamp: new Date().getTime(),
+                    trial: currentTrialParams.trial_id,
+                    trial_phase: phase.name,
+                    gaze_x: gaze.x,
+                    gaze_y: gaze.y,
+                    left_iris_radius: latestGazeOffset ? latestGazeOffset.leftIrisRadius : NaN,
+                    right_iris_radius: latestGazeOffset ? latestGazeOffset.rightIrisRadius : NaN,
+                    head_pose: latestGazeOffset ? latestGazeOffset.head_pose : [NaN, NaN, NaN],
+                    blink_state: latestGazeOffset ? latestGazeOffset.blinkState : 0,
+                    target_x: sternbergState.target.x,
+                    target_y: sternbergState.target.y
+                });
+            }, 25); // log every 25ms (~40Hz)
+            
+            if (phase.name === 'probe') {
+                // Setup keyboard/mouse handlers for Yes/No buttons
+                // Yes is Key 'Y' or left side button, No is Key 'N' or right side button
+                window.onkeydown = (e) => {
+                    if (responseCaptured) return;
+                    if (e.key.toLowerCase() === 'y') {
+                        recordResponse(1);
+                    } else if (e.key.toLowerCase() === 'n') {
+                        recordResponse(0);
+                    }
+                };
+                
+                // Add click handler regions inside canvas
+                window.onclick = (e) => {
+                    if (responseCaptured || sternbergState.phase !== 'probe') return;
+                    const cx = window.innerWidth / 2;
+                    const cy = window.innerHeight / 2;
+                    // Left button box (Yes)
+                    if (e.clientX >= cx - 200 && e.clientX <= cx - 40 && e.clientY >= cy + 180 && e.clientY <= cy + 240) {
+                        recordResponse(1);
+                    }
+                    // Right button box (No)
+                    if (e.clientX >= cx + 40 && e.clientX <= cx + 200 && e.clientY >= cy + 180 && e.clientY <= cy + 240) {
+                        recordResponse(0);
+                    }
+                };
+                
+                trialTimeout = setTimeout(() => {
+                    // Timeout (omission)
+                    recordResponse(-1);
+                }, phase.duration);
+                
+            } else {
+                // Auto transition for timed phases
+                setTimeout(() => {
+                    clearInterval(frameTimer);
+                    phaseIdx++;
+                    transitionToNextPhase();
+                }, phase.duration);
+            }
+            
+            function recordResponse(resp) {
+                if (responseCaptured) return;
+                responseCaptured = true;
+                clearInterval(frameTimer);
+                clearTimeout(trialTimeout);
+                
+                let rt = performance.now() - trialPhaseStart;
+                let accuracy = 0;
+                
+                if (resp === -1) {
+                    rt = 0; // Omission
+                    accuracy = 0;
+                } else {
+                    accuracy = (resp === currentTrialParams.corr_response) ? 1 : 0;
+                }
+                
+                responsesList.push({
+                    trial: currentTrialParams.trial_id,
+                    load: currentTrialParams.load,
+                    distractor_type: currentTrialParams.distractor_type,
+                    corr_response: currentTrialParams.corr_response,
+                    user_response: resp,
+                    accuracy: accuracy,
+                    reaction_time_ms: rt
+                });
+                
+                // Keep record of response values for visual feedback rendering
+                currentTrialParams.user_accuracy = accuracy;
+                currentTrialParams.user_rt = rt;
+                
+                // Transition to feedback immediately
+                phaseIdx++; // index of feedback phase
+                transitionToNextPhase();
+            }
+        }
+        
+        transitionToNextPhase();
+    }
+    
+    function drawSternbergPhase(phase) {
+        taskCtx.clearRect(0, 0, taskCanvas.width, taskCanvas.height);
+        
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        
+        // Draw fixation cross
+        if (phase.startsWith('fixation')) {
+            taskCtx.strokeStyle = '#FFFFFF';
+            taskCtx.lineWidth = 4;
+            taskCtx.beginPath();
+            taskCtx.moveTo(cx - 20, cy);
+            taskCtx.lineTo(cx + 20, cy);
+            taskCtx.moveTo(cx, cy - 20);
+            taskCtx.lineTo(cx, cy + 20);
+            taskCtx.stroke();
+            
+            sternbergState.target = { x: cx, y: cy };
+        }
+        
+        // Draw Dot array (4x4 Grid with dots)
+        else if (phase.startsWith('array')) {
+            const arrIdx = parseInt(phase.replace('array', '')) - 1;
+            const dots = currentTrialParams.array_items[arrIdx];
+            
+            draw4x4Grid(cx, cy);
+            
+            // Draw dots in cell centers
+            taskCtx.fillStyle = '#00E5FF';
+            dots.forEach(cell => {
+                let coords = getCellCoords(cx, cy, cell);
+                taskCtx.beginPath();
+                taskCtx.arc(coords.x, coords.y, 14, 0, 2*Math.PI);
+                taskCtx.fill();
+            });
+            
+            // Gaze target is center of gravity of dots
+            let sumX = 0, sumY = 0;
+            dots.forEach(cell => {
+                let coords = getCellCoords(cx, cy, cell);
+                sumX += coords.x;
+                sumY += coords.y;
+            });
+            sternbergState.target = { x: sumX / dots.length, y: sumY / dots.length };
+        }
+        
+        // Draw Distractor image locally using canvas graphics
+        else if (phase === 'distractor') {
+            const type = currentTrialParams.distractor_type;
+            
+            if (type === 'neutral') {
+                // Neutral: simple medium gray solid rectangle
+                taskCtx.fillStyle = '#484F58';
+                taskCtx.fillRect(cx - 150, cy - 150, 300, 300);
+            } 
+            else if (type === 'task_related') {
+                // Task-related: a complex grid cross layout
+                taskCtx.strokeStyle = '#58A6FF';
+                taskCtx.lineWidth = 2;
+                for (let i = -100; i <= 100; i += 20) {
+                    taskCtx.beginPath();
+                    taskCtx.moveTo(cx + i, cy - 150);
+                    taskCtx.lineTo(cx + i, cy + 150);
+                    taskCtx.moveTo(cx - 150, cy + i);
+                    taskCtx.lineTo(cx + 150, cy + i);
+                    taskCtx.stroke();
+                }
+            } 
+            else if (type === 'emotional') {
+                // Emotional: Draw a large bright red pulsing broken heart emoji
+                taskCtx.font = "80px Arial";
+                taskCtx.textAlign = "center";
+                taskCtx.textBaseline = "middle";
+                taskCtx.fillText("💔", cx, cy);
+            }
+            
+            sternbergState.target = { x: cx, y: cy };
+        }
+        
+        // Draw Probe Dot and answer buttons
+        else if (phase === 'probe') {
+            const cell = currentTrialParams.probe_cell;
+            
+            draw4x4Grid(cx, cy);
+            
+            // Draw single yellow probe dot
+            let coords = getCellCoords(cx, cy, cell);
+            taskCtx.fillStyle = '#FFD700';
+            taskCtx.beginPath();
+            taskCtx.arc(coords.x, coords.y, 14, 0, 2*Math.PI);
+            taskCtx.fill();
+            
+            // Draw YES / NO boxes on screen
+            // Left box (YES)
+            taskCtx.fillStyle = 'rgba(22, 27, 34, 0.8)';
+            taskCtx.strokeStyle = '#30363D';
+            taskCtx.lineWidth = 2;
+            taskCtx.fillRect(cx - 200, cy + 180, 160, 60);
+            taskCtx.strokeRect(cx - 200, cy + 180, 160, 60);
+            
+            taskCtx.fillStyle = '#39FF14';
+            taskCtx.font = "bold 20px sans-serif";
+            taskCtx.fillText("YES [Y]", cx - 120, cy + 215);
+            
+            // Right box (NO)
+            taskCtx.fillStyle = 'rgba(22, 27, 34, 0.8)';
+            taskCtx.fillRect(cx + 40, cy + 180, 160, 60);
+            taskCtx.strokeRect(cx + 40, cy + 180, 160, 60);
+            
+            taskCtx.fillStyle = '#FF3366';
+            taskCtx.fillText("NO [N]", cx + 120, cy + 215);
+            
+            taskCtx.fillStyle = '#C9D1D9';
+            taskCtx.font = "14px sans-serif";
+            taskCtx.fillText("Was this location shown in ANY array?", cx, cy - 220);
+            
+            sternbergState.target = coords;
+        }
+        
+        // Draw Feedback
+        else if (phase === 'feedback') {
+            const acc = currentTrialParams.user_accuracy;
+            const rt = currentTrialParams.user_rt;
+            
+            taskCtx.textAlign = "center";
+            taskCtx.textBaseline = "middle";
+            
+            if (rt === 0) {
+                taskCtx.fillStyle = '#FF7B72';
+                taskCtx.font = "bold 40px sans-serif";
+                taskCtx.fillText("TIMEOUT!", cx, cy);
+            } else if (acc === 1) {
+                taskCtx.fillStyle = '#39FF14';
+                taskCtx.font = "bold 40px sans-serif";
+                taskCtx.fillText("CORRECT", cx, cy - 20);
+                taskCtx.fillStyle = '#8B949E';
+                taskCtx.font = "20px sans-serif";
+                taskCtx.fillText(`${Math.round(rt)} ms`, cx, cy + 30);
+            } else {
+                taskCtx.fillStyle = '#FF3366';
+                taskCtx.font = "bold 40px sans-serif";
+                taskCtx.fillText("INCORRECT", cx, cy - 20);
+                taskCtx.fillStyle = '#8B949E';
+                taskCtx.font = "20px sans-serif";
+                taskCtx.fillText(`${Math.round(rt)} ms`, cx, cy + 30);
+            }
+            
+            sternbergState.target = { x: cx, y: cy };
+        }
+    }
+    
+    function draw4x4Grid(cx, cy) {
+        const cellSize = 80;
+        const gridOffset = cellSize * 2;
+        
+        taskCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        taskCtx.lineWidth = 1;
+        
+        // Draw lines
+        for (let i = 0; i <= 4; i++) {
+            let offset = -gridOffset + i * cellSize;
+            // Vertical
+            taskCtx.beginPath();
+            taskCtx.moveTo(cx + offset, cy - gridOffset);
+            taskCtx.lineTo(cx + offset, cy + gridOffset);
+            taskCtx.stroke();
+            // Horizontal
+            taskCtx.beginPath();
+            taskCtx.moveTo(cx - gridOffset, cy + offset);
+            taskCtx.lineTo(cx + gridOffset, cy + offset);
+            taskCtx.stroke();
+        }
+    }
+    
+    function getCellCoords(cx, cy, cellIdx) {
+        const cellSize = 80;
+        const gridOffset = cellSize * 2;
+        const row = Math.floor(cellIdx / 4);
+        const col = cellIdx % 4;
+        
+        const x = cx - gridOffset + col * cellSize + cellSize/2;
+        const y = cy - gridOffset + row * cellSize + cellSize/2;
+        
+        return { x: x, y: y };
+    }
+
+    // ----------------------------------------------------
+    // COMMUNICATIONS WITH STREAMLIT
+    // ----------------------------------------------------
+    
+    // Listen for custom parameters sent by Streamlit
+    window.addEventListener('message', (event) => {
+        const msg = event.data;
+        if (msg.type === 'streamlit:render') {
+            const args = msg.args;
+            if (args.task_type) {
+                taskType = args.task_type;
+                console.log("Setting task type:", taskType);
+            }
+            if (args.calibration_thresholds) {
+                calThresholds = args.calibration_thresholds;
+                console.log("Loaded thresholds:", calThresholds);
+            }
+        }
+    });
+
+    // Notify Streamlit that the component has rendered and is ready
+    window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: "streamlit:componentReady",
+        apiVersion: 1
+    }, "*");
+
+    // Set frame height to 700px
+    window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: "streamlit:setFrameHeight",
+        height: 700
+    }, "*");
+
+    function sendSessionResult(result) {
+        console.log("Posting result back to Streamlit:", result);
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: result
+        }, "*");
+    }
+</script>
+
+</body>
+</html>

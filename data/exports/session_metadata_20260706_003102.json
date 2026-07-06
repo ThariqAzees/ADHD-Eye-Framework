@@ -1,0 +1,25 @@
+{
+    "participant_id": "participant_01",
+    "date": "2026-07-06T00:31:02.902286",
+    "task_type": "sternberg_task",
+    "device": "Unknown",
+    "browser": "Unknown",
+    "camera_resolution": "Unknown",
+    "fps": 30,
+    "calibration_metrics": {
+        "mean_error": 999,
+        "median_error": 999,
+        "max_error": 999,
+        "p95_error": 999,
+        "rms_error": 999,
+        "gaze_jitter": 999.0,
+        "sample_loss_rate": 999.0,
+        "head_motion_score": 999.0,
+        "calibration_status": "completed",
+        "quality_rating": "Poor"
+    },
+    "framework_version": "1.0.0",
+    "feature_extractor_version": "1.0.0",
+    "model_version": "1.0.0",
+    "dataset_version": "Rojas-Libano-2019-v3"
+}
