@@ -139,4 +139,11 @@ If referencing this system in academic work, please cite (placeholder — update
 
 ## License
 
-*(Add license here — e.g. MIT, or "All rights reserved pending publication" if you want to hold off until the paper is out.)*
+Copyright © 2026 Thariq Azees Amanulla. All rights reserved.
+
+This repository is made available for **viewing purposes only** as part of
+an ongoing academic research submission. No permission is granted to copy,
+modify, distribute, or use this code or its associated documentation, in
+whole or in part, for any purpose without the express written consent of
+the author.
+
