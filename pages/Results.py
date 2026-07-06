@@ -27,6 +27,34 @@ else:
 cal_thresholds = config["calibration"]
 
 # Check if results are present in session state
+# Gating check
+from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, close_active_session
+STATE_ORDER = [
+    "NOT_STARTED", "STUDY_CONFIGURED", "PARTICIPANT_REGISTERED", "SESSION_CREATED",
+    "CALIBRATION_COMPLETED", "SMOOTH_PURSUIT_COMPLETED", "STERNBERG_COMPLETED",
+    "RESULTS_REVIEWED", "SESSION_CLOSED"
+]
+current_state = st.session_state.get("experiment_state", "NOT_STARTED")
+required_state = "STERNBERG_COMPLETED"
+
+if "session_id" not in st.session_state or not st.session_state["session_id"] or STATE_ORDER.index(current_state) < STATE_ORDER.index(required_state):
+    st.warning("⚠️ **No active experiment session.**\n\nPlease start or resume an experiment using the Experiment Manager before collecting data.")
+    if st.button("Open Experiment Manager", use_container_width=True):
+        st.switch_page("pages/Experiment_Manager.py")
+    st.stop()
+
+# Retrieve values from session state
+subject_id = st.session_state["participant_id"]
+session_id = st.session_state["session_id"]
+st.write(f"**Current Participant:** `{subject_id}` | **Session:** `{session_id}`")
+
+# Log Results Viewed event
+logger = ExperimentLogger(session_id)
+if f"results_viewed_logged_{session_id}" not in st.session_state:
+    logger.log_user_event("Results Viewed")
+    st.session_state[f"results_viewed_logged_{session_id}"] = True
+    transition_experiment_state("RESULTS_REVIEWED")
+
 if 'sternberg_results' not in st.session_state:
     st.warning("⚠️ No completed Sternberg Working Memory Task session found. Please complete the task module first before viewing this dashboard.")
     if st.button("Go to Sternberg Task"):
@@ -278,3 +306,11 @@ with col_ex2:
         mime="application/json",
         use_container_width=True
     )
+    
+st.markdown("---")
+st.markdown("### 🏁 End Experiment Session")
+if st.button("Close Experiment Session & Lock Logs", use_container_width=True, type="primary"):
+    close_active_session()
+    st.success("🎉 Experiment session closed and locked successfully! Gaze logs are preserved. You can register a new participant in the Experiment Manager.")
+    if st.button("Return to Home"):
+        st.switch_page("pages/Home.py")

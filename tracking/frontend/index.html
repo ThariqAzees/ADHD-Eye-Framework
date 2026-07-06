@@ -842,6 +842,7 @@
     navigator.mediaDevices.getUserMedia({ video: true })
         .then(() => {
             camera.start();
+            detectWebcamInfo();
         })
         .catch(err => {
             console.error("Camera error:", err);
@@ -3082,8 +3083,81 @@
     initTabs();
     updateStreamlitFrameHeight();
 
+    let detectedWebcamLabel = null;
+    function detectWebcamInfo() {
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+            navigator.mediaDevices.enumerateDevices()
+                .then(devices => {
+                    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    if (videoDevices.length > 0) {
+                        const activeDevice = videoDevices.find(d => d.label) || videoDevices[0];
+                        detectedWebcamLabel = activeDevice.label || "Webcam (generic)";
+                        console.log("[METADATA] Webcam detected:", detectedWebcamLabel);
+                    }
+                })
+                .catch(err => {
+                    console.error("[METADATA] Error enumerating devices:", err);
+                });
+        }
+    }
+
+    function getDeviceMetadata() {
+        let browserName = null;
+        let osName = null;
+        let resolution = null;
+        
+        try {
+            const ua = navigator.userAgent;
+            // Browser Detection
+            if (ua.indexOf("Firefox") > -1) {
+                browserName = "Firefox";
+            } else if (ua.indexOf("SamsungBrowser") > -1) {
+                browserName = "Samsung Browser";
+            } else if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) {
+                browserName = "Opera";
+            } else if (ua.indexOf("Trident") > -1) {
+                browserName = "Internet Explorer";
+            } else if (ua.indexOf("Edge") > -1 || ua.indexOf("Edg") > -1) {
+                browserName = "Edge";
+            } else if (ua.indexOf("Chrome") > -1) {
+                browserName = "Chrome";
+            } else if (ua.indexOf("Safari") > -1) {
+                browserName = "Safari";
+            }
+
+            // Operating System Detection
+            if (ua.indexOf("Windows NT") > -1) {
+                osName = "Windows";
+            } else if (ua.indexOf("Macintosh") > -1 || ua.indexOf("Mac OS") > -1) {
+                osName = "macOS";
+            } else if (ua.indexOf("Linux") > -1) {
+                osName = "Linux";
+            } else if (ua.indexOf("Android") > -1) {
+                osName = "Android";
+            } else if (ua.indexOf("iPhone") > -1 || ua.indexOf("iPad") > -1) {
+                osName = "iOS";
+            }
+            
+            // Screen Resolution
+            resolution = window.screen.width + "x" + window.screen.height;
+        } catch (e) {
+            console.error("[METADATA] Error detecting browser/OS/screen:", e);
+        }
+        
+        return {
+            browser: browserName,
+            operating_system: osName,
+            screen_resolution: resolution
+        };
+    }
+
     function sendSessionResult(result) {
-        console.log("Posting result back to Streamlit:", result);
+        // Collect and append device metadata
+        const metadata = getDeviceMetadata();
+        metadata.webcam_information = detectedWebcamLabel;
+        result.device_metadata = metadata;
+
+        console.log("Posting result back to Streamlit with device metadata:", result);
         window.parent.postMessage({
             isStreamlitMessage: true,
             type: "streamlit:setComponentValue",

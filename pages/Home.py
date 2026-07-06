@@ -33,30 +33,50 @@ st.markdown("""
 col_left, col_right = st.columns([1, 1])
 
 with col_left:
-    st.markdown("### 📋 Participant Configuration")
+    st.markdown("### 📋 Current Study & Session Status")
     with st.container(border=True):
-        subj_id = st.text_input("Participant/Subject ID:", value=st.session_state['subject_id'])
-        st.session_state['subject_id'] = subj_id
-        
-        st.markdown("**Session Metadata (Hardware/Browser Environment)**")
-        col_dev, col_brow = st.columns(2)
-        with col_dev:
-            device = st.text_input("Device:", value=st.session_state['device_info']['device'])
-        with col_brow:
-            browser = st.text_input("Browser:", value=st.session_state['device_info']['browser'])
-            
-        col_res, col_fps = st.columns(2)
-        with col_res:
-            resolution = st.text_input("Camera Resolution:", value=st.session_state['device_info']['camera_resolution'])
-        with col_fps:
-            fps = st.number_input("Est. FPS:", value=st.session_state['device_info']['fps'], min_value=1, max_value=240)
-            
-        st.session_state['device_info'] = {
-            "device": device,
-            "browser": browser,
-            "camera_resolution": resolution,
-            "fps": int(fps)
-        }
+        session_id = st.session_state.get("session_id")
+        if session_id:
+            st.success("✅ **Active Experiment Session**")
+            st.markdown(f"""
+            - **Study ID:** `{st.session_state.get('study_id')}`
+            - **Participant ID:** `{st.session_state.get('participant_id')}`
+            - **Session ID:** `{session_id}`
+            - **Experiment State:** `{st.session_state.get('experiment_state', 'N/A')}`
+            """)
+            if st.button("Manage Session (Experiment Manager)", use_container_width=True):
+                st.switch_page("pages/Experiment_Manager.py")
+        else:
+            st.info("ℹ️ **No active experiment session**")
+            st.markdown("Standardised human-subject studies are managed through the Experiment Manager.")
+            if st.button("Start Experiment / Register Participant", use_container_width=True, type="primary"):
+                st.switch_page("pages/Experiment_Manager.py")
+                
+            # Allow manual override for testing/debug if desired
+            st.markdown("---")
+            with st.expander("🛠️ Manual Testing Fallback (No Session)"):
+                subj_id = st.text_input("Participant/Subject ID:", value=st.session_state.get('subject_id', 'participant_01'))
+                st.session_state['subject_id'] = subj_id
+                
+                st.markdown("**Session Metadata (Hardware/Browser Environment)**")
+                col_dev, col_brow = st.columns(2)
+                with col_dev:
+                    device = st.text_input("Device:", value=st.session_state['device_info']['device'])
+                with col_brow:
+                    browser = st.text_input("Browser:", value=st.session_state['device_info']['browser'])
+                    
+                col_res, col_fps = st.columns(2)
+                with col_res:
+                    resolution = st.text_input("Camera Resolution:", value=st.session_state['device_info']['camera_resolution'])
+                with col_fps:
+                    fps = st.number_input("Est. FPS:", value=st.session_state['device_info']['fps'], min_value=1, max_value=240)
+                    
+                st.session_state['device_info'] = {
+                    "device": device,
+                    "browser": browser,
+                    "camera_resolution": resolution,
+                    "fps": int(fps)
+                }
 
     st.markdown("### 💾 Dataset Management")
     with st.container(border=True):

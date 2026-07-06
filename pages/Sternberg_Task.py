@@ -32,8 +32,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Participant ID check
-subject_id = st.session_state.get('subject_id', 'participant_01')
-st.write(f"**Current Participant:** `{subject_id}`")
+from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, update_session_telemetry
+STATE_ORDER = [
+    "NOT_STARTED", "STUDY_CONFIGURED", "PARTICIPANT_REGISTERED", "SESSION_CREATED",
+    "CALIBRATION_COMPLETED", "SMOOTH_PURSUIT_COMPLETED", "STERNBERG_COMPLETED",
+    "RESULTS_REVIEWED", "SESSION_CLOSED"
+]
+current_state = st.session_state.get("experiment_state", "NOT_STARTED")
+required_state = "CALIBRATION_COMPLETED"
+
+if "session_id" not in st.session_state or not st.session_state["session_id"] or STATE_ORDER.index(current_state) < STATE_ORDER.index(required_state):
+    st.warning("⚠️ **No active experiment session.**\n\nPlease start or resume an experiment using the Experiment Manager before collecting data.")
+    if st.button("Open Experiment Manager", use_container_width=True):
+        st.switch_page("pages/Experiment_Manager.py")
+    st.stop()
+
+# Retrieve values from session state
+subject_id = st.session_state["participant_id"]
+session_id = st.session_state["session_id"]
+st.write(f"**Current Participant:** `{subject_id}` | **Session:** `{session_id}`")
+
+# Log Sternberg Task Start event
+logger = ExperimentLogger(session_id)
+if f"sternberg_start_logged_{session_id}" not in st.session_state:
+    logger.log_task_event("Sternberg Task Started")
+    st.session_state[f"sternberg_start_logged_{session_id}"] = True
 
 # Check if model has been trained
 models_path = os.path.join(base_dir, "ml", "models_v1.0.pkl")
@@ -57,6 +80,29 @@ if component_val is not None:
     raw_log = component_val.get('raw_log', [])
     responses = component_val.get('responses', [])
     cal_diagnostics = component_val.get('calibration_diagnostics', {})
+    
+    # Log events & transition state
+    logger = ExperimentLogger(session_id)
+    logger.log_tracking_event("Calibration Completed", {
+        "quality": cal_diagnostics.get('quality', "Poor"),
+        "mean_error": cal_diagnostics.get('mean_error', 999),
+        "rms_error": cal_diagnostics.get('rms_error', 999),
+        "head_motion_score": cal_diagnostics.get('head_motion_score', 1.0)
+    })
+    logger.log_task_event("Sternberg Task Completed")
+    
+    transition_experiment_state("STERNBERG_COMPLETED")
+    
+    # Update session telemetry/device metadata from JS if available
+    device_metadata = component_val.get('device_metadata')
+    if device_metadata:
+        update_session_telemetry(
+            session_id=session_id,
+            browser=device_metadata.get('browser'),
+            operating_system=device_metadata.get('operating_system'),
+            screen_resolution=device_metadata.get('screen_resolution'),
+            webcam_information=device_metadata.get('webcam_information')
+        )
     
     # Export calibration report (JSON and CSV)
     from tracking.calibration import export_calibration_report
