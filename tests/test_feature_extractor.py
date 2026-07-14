@@ -258,5 +258,23 @@ class TestFeatureExtractor(unittest.TestCase):
         scaled = scaler.transform(imputed)
         self.assertEqual(scaled.shape, (1, len(feature_order)))
 
+    def test_production_call_signature(self):
+        # Replicates the call in pages/Sternberg_Task.py exactly
+        raw_log = [{"trial": 1, "trial_phase": "fixation", "left_iris_radius": 5.0, "right_iris_radius": 5.0, "blink_state": 0, "gaze_x": 640.0, "gaze_y": 360.0, "timestamp": 0.0}]
+        responses = [{"trial": 1, "load": 1, "distractor_type": "none", "corr_response": 1, "user_response": 1, "accuracy": 1, "reaction_time_ms": 500.0}]
+        subject_id = "smoke_test_subject"
+        viewport_width = 1920.0
+        viewport_height = 1080.0
+
+        # This call must match the production call in pages/Sternberg_Task.py exactly
+        trial_features_list, agg_features = extract_features_from_logs(
+            raw_log=raw_log,
+            responses=responses,
+            subject_id=subject_id,
+            viewport_width=viewport_width,
+            viewport_height=viewport_height
+        )
+        self.assertIsNotNone(agg_features)
+
 if __name__ == '__main__':
     unittest.main()
