@@ -28,7 +28,8 @@ cal_thresholds = config["calibration"]
 
 # Check if results are present in session state
 # Gating check
-from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, close_active_session, STATE_ORDER
+from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, close_active_session
+from experiment.session import STATE_ORDER
 current_state = st.session_state.get("experiment_state", "NOT_STARTED")
 required_state = "STERNBERG_COMPLETED"
 
@@ -80,15 +81,25 @@ col_e1, col_e2 = st.columns([1, 2])
 with col_e1:
     st.markdown("#### 📐 Calibration Quality & Accuracy")
     with st.container(border=True):
-        mean_err = cal_metrics.get("mean_error", 999)
-        med_err = cal_metrics.get("median_error", 999)
-        max_err = cal_metrics.get("max_error", 999)
-        p95_err = cal_metrics.get("p95_error", 999)
-        rms_err = cal_metrics.get("rms_error", 999)
-        jitter = cal_metrics.get("gaze_jitter", 999.0)
-        loss_rate = cal_metrics.get("sample_loss_rate", 999.0)
-        head_motion = cal_metrics.get("head_motion_score", 999.0)
+        mean_err = cal_metrics.get("mean_error")
+        med_err = cal_metrics.get("median_error")
+        max_err = cal_metrics.get("max_error")
+        p95_err = cal_metrics.get("p95_error")
+        rms_err = cal_metrics.get("rms_error")
+        jitter = cal_metrics.get("gaze_jitter")
+        loss_rate = cal_metrics.get("sample_loss_rate")
+        head_motion = cal_metrics.get("head_motion_score")
         quality = cal_metrics.get("quality_rating", "Poor")
+        
+        # Formatting helpers
+        def fmt_px(val):
+            return f"{val} px" if val is not None and val != 999 else "N/A"
+
+        def fmt_pct(val):
+            return f"{val * 100:.1f}%" if val is not None and val != 999.0 else "N/A"
+
+        def fmt_val(val, decimals=5):
+            return f"{val:.{decimals}f}" if val is not None and val != 999.0 else "N/A"
         
         # Classify quality coloring
         quality_color = "#FF3366"
@@ -101,14 +112,14 @@ with col_e1:
             
         st.markdown(f"**Calibration Quality Rating:** <span style='font-size: 20px; font-weight: bold; color: {quality_color};'>{quality}</span>", unsafe_allow_html=True)
         st.markdown(f"""
-        - **Mean Gaze Error:** `{mean_err} px`
-        - **Median Gaze Error:** `{med_err} px`
-        - **Max Gaze Error:** `{max_err} px`
-        - **95th Percentile:** `{p95_err} px`
-        - **RMS Error:** `{rms_err} px`
-        - **Gaze Jitter:** `{jitter} px`
-        - **Sample Loss Rate:** `{loss_rate * 100:.1f}%`
-        - **Head Motion Score:** `{head_motion:.5f}`
+        - **Mean Gaze Error:** `{fmt_px(mean_err)}`
+        - **Median Gaze Error:** `{fmt_px(med_err)}`
+        - **Max Gaze Error:** `{fmt_px(max_err)}`
+        - **95th Percentile:** `{fmt_px(p95_err)}`
+        - **RMS Error:** `{fmt_px(rms_err)}`
+        - **Gaze Jitter:** `{fmt_px(jitter)}`
+        - **Sample Loss Rate:** `{fmt_pct(loss_rate)}`
+        - **Head Motion Score:** `{fmt_val(head_motion)}`
         """)
         
         # Summary Gaze Stats

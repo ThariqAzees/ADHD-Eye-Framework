@@ -32,7 +32,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Participant ID check
-from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, update_session_telemetry, STATE_ORDER
+from experiment.Experiment_Manager import transition_experiment_state, ExperimentLogger, update_session_telemetry
+from experiment.session import STATE_ORDER
 current_state = st.session_state.get("experiment_state", "NOT_STARTED")
 required_state = "SESSION_CREATED"
 
@@ -119,14 +120,14 @@ if component_val is not None:
     cal_json_path, cal_csv_path = export_calibration_report(cal_diagnostics, subject_id)
     
     cal_metrics = {
-        "mean_error": cal_diagnostics.get('mean_error', 999),
-        "median_error": cal_diagnostics.get('median_error', 999),
-        "max_error": cal_diagnostics.get('max_error', 999),
-        "p95_error": cal_diagnostics.get('p95_error', 999),
-        "rms_error": cal_diagnostics.get('rms_error', 999),
-        "gaze_jitter": cal_diagnostics.get('gaze_jitter', 999.0),
-        "sample_loss_rate": cal_diagnostics.get('sample_loss_rate', 999.0),
-        "head_motion_score": cal_diagnostics.get('head_motion_score', 999.0),
+        "mean_error": cal_diagnostics.get('mean_error') if cal_diagnostics.get('mean_error') is not None and cal_diagnostics.get('mean_error') != 999 else None,
+        "median_error": cal_diagnostics.get('median_error') if cal_diagnostics.get('median_error') is not None and cal_diagnostics.get('median_error') != 999 else None,
+        "max_error": cal_diagnostics.get('max_error') if cal_diagnostics.get('max_error') is not None and cal_diagnostics.get('max_error') != 999 else None,
+        "p95_error": cal_diagnostics.get('p95_error') if cal_diagnostics.get('p95_error') is not None and cal_diagnostics.get('p95_error') != 999 else None,
+        "rms_error": cal_diagnostics.get('rms_error') if cal_diagnostics.get('rms_error') is not None and cal_diagnostics.get('rms_error') != 999 else None,
+        "gaze_jitter": cal_diagnostics.get('gaze_jitter') if cal_diagnostics.get('gaze_jitter') is not None and cal_diagnostics.get('gaze_jitter') != 999.0 else None,
+        "sample_loss_rate": cal_diagnostics.get('sample_loss_rate') if cal_diagnostics.get('sample_loss_rate') is not None and cal_diagnostics.get('sample_loss_rate') != 999.0 else None,
+        "head_motion_score": cal_diagnostics.get('head_motion_score') if cal_diagnostics.get('head_motion_score') is not None and cal_diagnostics.get('head_motion_score') != 999.0 else None,
         "calibration_status": "completed",
         "quality_rating": cal_diagnostics.get('quality', "Poor")
     }

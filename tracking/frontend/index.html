@@ -1055,7 +1055,7 @@
             lightingGood: false,
             headStable: false,
             bothEyesVisible: false,
-            headMotionScore: 999.0
+            headMotionScore: null
         };
         
         if (!latestGazeOffset) {
@@ -1991,19 +1991,19 @@
                 const gaze = predictGaze();
                 const diag = calculateDiagnostics();
                 
-                let err = gaze ? Math.sqrt(Math.pow(target.x - gaze.x, 2) + Math.pow(target.y - gaze.y, 2)) : 999.0;
+                let err = (gaze && Number.isFinite(gaze.x) && Number.isFinite(gaze.y)) ? Math.sqrt(Math.pow(target.x - gaze.x, 2) + Math.pow(target.y - gaze.y, 2)) : null;
                 
                 verificationLog.push({
                     timestamp: new Date().getTime(),
                     elapsed_ms: Math.round(elapsed),
                     target_x: Math.round(target.x),
                     target_y: Math.round(target.y),
-                    gaze_x: gaze ? Math.round(gaze.x) : null,
-                    gaze_y: gaze ? Math.round(gaze.y) : null,
-                    error: gaze ? Math.round(err) : null,
+                    gaze_x: (gaze && Number.isFinite(gaze.x)) ? Math.round(gaze.x) : null,
+                    gaze_y: (gaze && Number.isFinite(gaze.y)) ? Math.round(gaze.y) : null,
+                    error: err !== null ? Math.round(err) : null,
                     confidence: (latestGazeOffset && latestGazeOffset.ear !== undefined) ? parseFloat((latestGazeOffset.ear).toFixed(4)) : 0.0,
                     blink_state: latestGazeOffset ? latestGazeOffset.blinkState : 0,
-                    head_motion: (diag && diag.headMotionScore !== undefined) ? parseFloat(diag.headMotionScore.toFixed(6)) : 0.0
+                    head_motion: (diag && diag.headMotionScore !== null && Number.isFinite(diag.headMotionScore)) ? parseFloat(diag.headMotionScore.toFixed(6)) : null
                 });
                 
             }, 25);
@@ -2042,8 +2042,20 @@
     function evaluateValidationQuality() {
         document.getElementById('gaze-target-marker').style.display = 'none';
         
-        const validSamples = verificationLog.filter(s => s.gaze_x !== null && s.blink_state === 0);
-        const lossRate = (verificationLog.length - validSamples.length) / verificationLog.length;
+        const validSamples = verificationLog.filter(s => 
+            s.gaze_x !== null && s.gaze_x !== undefined &&
+            s.gaze_y !== null && s.gaze_y !== undefined &&
+            s.target_x !== null && s.target_x !== undefined &&
+            s.target_y !== null && s.target_y !== undefined &&
+            Number.isFinite(s.gaze_x) && Number.isFinite(s.gaze_y) &&
+            Number.isFinite(s.target_x) && Number.isFinite(s.target_y) &&
+            s.blink_state === 0
+        );
+        
+        const totalFrames = verificationLog.length;
+        const validGazeFrames = validSamples.length;
+        const invalidGazeFrames = totalFrames - validGazeFrames;
+        const lossRate = totalFrames > 0 ? (totalFrames - validGazeFrames) / totalFrames : 1.0;
         
         // Scale validation errors to standard 1280x720 coordinate system for resolution independence
         const scaleX = 1280 / window.innerWidth;
@@ -2055,91 +2067,111 @@
             return Math.sqrt(errX * errX + errY * errY);
         });
         
-        if (errors.length === 0) {
-            errors = [999];
+        let meanErr = null;
+        let medianErr = null;
+        let maxErr = null;
+        let p95Err = null;
+        let rmsErr = null;
+        
+        if (errors.length > 0) {
+            errors.sort((a, b) => a - b);
+            meanErr = errors.reduce((a, b) => a + b, 0) / errors.length;
+            medianErr = errors[Math.floor(errors.length / 2)];
+            maxErr = errors[errors.length - 1];
+            p95Err = errors[Math.min(errors.length - 1, Math.floor(errors.length * 0.95))];
+            
+            const sumSq = errors.reduce((sum, err) => sum + err * err, 0);
+            rmsErr = Math.sqrt(sumSq / errors.length);
         }
         
-        errors.sort((a, b) => a - b);
-        
-        const meanErr = errors.reduce((a, b) => a + b, 0) / errors.length;
-        const medianErr = errors[Math.floor(errors.length / 2)];
-        const maxErr = errors[errors.length - 1];
-        const p95Err = errors[Math.min(errors.length - 1, Math.floor(errors.length * 0.95))];
-        
-        const sumSq = errors.reduce((sum, err) => sum + err * err, 0);
-        const rmsErr = Math.sqrt(sumSq / errors.length);
-        
-        let jitter = 0.0;
-        if (validSamples.length > 2) {
+        let jitter = null;
+        if (validSamples.length >= 2) {
             let diffs = [];
             for (let i = 1; i < validSamples.length; i++) {
                 let dx = (validSamples[i].gaze_x - validSamples[i-1].gaze_x) * scaleX;
                 let dy = (validSamples[i].gaze_y - validSamples[i-1].gaze_y) * scaleY;
                 diffs.push(Math.sqrt(dx*dx + dy*dy));
             }
-            const avgDiff = diffs.reduce((a,b)=>a+b, 0)/diffs.length;
-            jitter = Math.sqrt(diffs.reduce((sum,d)=>sum + Math.pow(d-avgDiff, 2), 0)/diffs.length);
+            if (diffs.length > 0) {
+                const avgDiff = diffs.reduce((a,b)=>a+b, 0)/diffs.length;
+                jitter = Math.sqrt(diffs.reduce((sum,d)=>sum + Math.pow(d-avgDiff, 2), 0)/diffs.length);
+            }
         }
         
-        const headMotions = verificationLog.map(s => s.head_motion);
-        const avgHeadMotion = headMotions.reduce((a,b)=>a+b,0)/headMotions.length;
+        const headMotions = verificationLog
+            .map(s => s.head_motion)
+            .filter(h => h !== null && h !== undefined && Number.isFinite(h));
+        const avgHeadMotion = headMotions.length > 0 ? headMotions.reduce((a,b)=>a+b,0)/headMotions.length : 0.0;
         
         // ----------------------------------------------------
         // DYNAMIC QUALITY SCORE CALCULATION
         // ----------------------------------------------------
         
         // 1. Calibration Accuracy (35% Max)
-        // Run fitted model on calibration points to determine mean calibration error
-        let calMeanErr = 999.0;
+        let calMeanErr = null;
         if (calibrationData.length > 0) {
             let calErrors = [];
             for (const sample of calibrationData) {
-                const predX = dotProduct(wX, sample.features) * window.innerWidth;
-                const predY = dotProduct(wY, sample.features) * window.innerHeight;
-                const targetX = sample.target[0] * window.innerWidth;
-                const targetY = sample.target[1] * window.innerHeight;
-                
-                const errX = (predX - targetX) * scaleX;
-                const errY = (predY - targetY) * scaleY;
-                calErrors.push(Math.sqrt(errX*errX + errY*errY));
+                if (sample.features && sample.target) {
+                    const predX = dotProduct(wX, sample.features) * window.innerWidth;
+                    const predY = dotProduct(wY, sample.features) * window.innerHeight;
+                    const targetX = sample.target[0] * window.innerWidth;
+                    const targetY = sample.target[1] * window.innerHeight;
+                    
+                    const errX = (predX - targetX) * scaleX;
+                    const errY = (predY - targetY) * scaleY;
+                    calErrors.push(Math.sqrt(errX*errX + errY*errY));
+                }
             }
-            calMeanErr = calErrors.reduce((a,b)=>a+b, 0) / calErrors.length;
+            if (calErrors.length > 0) {
+                calMeanErr = calErrors.reduce((a,b)=>a+b, 0) / calErrors.length;
+            }
         }
         
         let calAccScore = 0;
-        if (calMeanErr <= 40) calAccScore = 35;
-        else if (calMeanErr <= 80) calAccScore = 35 - ((calMeanErr - 40) / 40) * 15;
-        else if (calMeanErr <= 150) calAccScore = 20 - ((calMeanErr - 80) / 70) * 15;
-        else calAccScore = Math.max(0, 5 - ((calMeanErr - 150) / 100) * 5);
+        if (calMeanErr !== null && Number.isFinite(calMeanErr)) {
+            if (calMeanErr <= 40) calAccScore = 35;
+            else if (calMeanErr <= 80) calAccScore = 35 - ((calMeanErr - 40) / 40) * 15;
+            else if (calMeanErr <= 150) calAccScore = 20 - ((calMeanErr - 80) / 70) * 15;
+            else calAccScore = Math.max(0, 5 - ((calMeanErr - 150) / 100) * 5);
+        }
         calAccScore = Math.round(calAccScore);
         
         // 2. Verification Accuracy (30% Max)
         let verAccScore = 0;
-        if (meanErr <= 80) verAccScore = 30;
-        else if (meanErr <= 150) verAccScore = 30 - ((meanErr - 80) / 70) * 10;
-        else if (meanErr <= 250) verAccScore = 20 - ((meanErr - 150) / 100) * 10;
-        else verAccScore = Math.max(0, 10 - ((meanErr - 250) / 100) * 10);
+        if (meanErr !== null && Number.isFinite(meanErr)) {
+            if (meanErr <= 80) verAccScore = 30;
+            else if (meanErr <= 150) verAccScore = 30 - ((meanErr - 80) / 70) * 10;
+            else if (meanErr <= 250) verAccScore = 20 - ((meanErr - 150) / 100) * 10;
+            else verAccScore = Math.max(0, 10 - ((meanErr - 250) / 100) * 10);
+        }
         verAccScore = Math.round(verAccScore);
         
         // 3. Tracking Stability (15% Max)
         let trackStabilityScore = 0;
-        if (jitter <= 15) trackStabilityScore = 15;
-        else if (jitter <= 35) trackStabilityScore = 15 - ((jitter - 15) / 20) * 7;
-        else trackStabilityScore = Math.max(0, 8 - ((jitter - 35) / 50) * 8);
+        if (jitter !== null && Number.isFinite(jitter)) {
+            if (jitter <= 15) trackStabilityScore = 15;
+            else if (jitter <= 35) trackStabilityScore = 15 - ((jitter - 15) / 20) * 7;
+            else trackStabilityScore = Math.max(0, 8 - ((jitter - 35) / 50) * 8);
+        }
         trackStabilityScore = Math.round(trackStabilityScore);
         
         // 4. Head Stability (10% Max)
         let headStabilityScore = 0;
-        if (avgHeadMotion <= 0.0006) headStabilityScore = 10;
-        else if (avgHeadMotion <= 0.0015) headStabilityScore = 10 - ((avgHeadMotion - 0.0006) / 0.0009) * 5;
-        else headStabilityScore = Math.max(0, 5 - ((avgHeadMotion - 0.0015) / 0.003) * 5);
+        if (headMotions.length > 0 && Number.isFinite(avgHeadMotion)) {
+            if (avgHeadMotion <= 0.0006) headStabilityScore = 10;
+            else if (avgHeadMotion <= 0.0015) headStabilityScore = 10 - ((avgHeadMotion - 0.0006) / 0.0009) * 5;
+            else headStabilityScore = Math.max(0, 5 - ((avgHeadMotion - 0.0015) / 0.003) * 5);
+        }
         headStabilityScore = Math.round(headStabilityScore);
         
         // 5. Face Detection Confidence (10% Max)
         let faceConfScore = 0;
-        if (lossRate <= 0.03) faceConfScore = 10;
-        else if (lossRate <= 0.12) faceConfScore = 10 - ((lossRate - 0.03) / 0.09) * 5;
-        else faceConfScore = Math.max(0, 5 - ((lossRate - 0.12) / 0.3) * 5);
+        if (Number.isFinite(lossRate)) {
+            if (lossRate <= 0.03) faceConfScore = 10;
+            else if (lossRate <= 0.12) faceConfScore = 10 - ((lossRate - 0.03) / 0.09) * 5;
+            else faceConfScore = Math.max(0, 5 - ((lossRate - 0.12) / 0.3) * 5);
+        }
         faceConfScore = Math.round(faceConfScore);
         
         const totalScore = calAccScore + verAccScore + trackStabilityScore + headStabilityScore + faceConfScore;
@@ -2171,16 +2203,16 @@
         if (faceConfScore < 5) reasons.push(`High blink rate or camera loss rate (${faceConfScore}/10%). Avoid blinks during active sweeps and adjust camera lighting.`);
         
         // Render metrics to detailed view in screen pixels (unscaled)
-        document.getElementById('mean-err-val').innerText = `${Math.round(meanErr)} px`;
-        document.getElementById('median-err-val').innerText = `${Math.round(medianErr)} px`;
-        document.getElementById('max-err-val').innerText = `${Math.round(maxErr)} px`;
-        document.getElementById('p95-err-val').innerText = `${Math.round(p95Err)} px`;
-        document.getElementById('rms-err-val').innerText = `${Math.round(rmsErr)} px`;
-        document.getElementById('jitter-val').innerText = `${jitter.toFixed(1)} px`;
+        document.getElementById('mean-err-val').innerText = meanErr !== null ? `${Math.round(meanErr)} px` : "N/A";
+        document.getElementById('median-err-val').innerText = medianErr !== null ? `${Math.round(medianErr)} px` : "N/A";
+        document.getElementById('max-err-val').innerText = maxErr !== null ? `${Math.round(maxErr)} px` : "N/A";
+        document.getElementById('p95-err-val').innerText = p95Err !== null ? `${Math.round(p95Err)} px` : "N/A";
+        document.getElementById('rms-err-val').innerText = rmsErr !== null ? `${Math.round(rmsErr)} px` : "N/A";
+        document.getElementById('jitter-val').innerText = jitter !== null ? `${jitter.toFixed(1)} px` : "N/A";
         document.getElementById('latency-val').innerText = `~25 ms`;
         document.getElementById('loss-rate-val').innerText = `${(lossRate * 100).toFixed(1)} %`;
         document.getElementById('samples-val').innerText = `${samplesCountCal} / ${samplesRejectedCal} rej.`;
-        document.getElementById('head-motion-val').innerText = avgHeadMotion.toFixed(5);
+        document.getElementById('head-motion-val').innerText = Number.isFinite(avgHeadMotion) ? avgHeadMotion.toFixed(5) : "N/A";
         
         // Render score breakdown details to Tab 1 breakdown container
         document.getElementById('score-cal-val').innerText = `${calAccScore}% / 35%`;
@@ -2224,40 +2256,53 @@
         if (proceedBtn) {
             proceedBtn.style.display = 'inline-block';
             if (passes) {
-                proceedBtn.innerText = "Proceed";
-                proceedBtn.className = "btn";
                 proceedBtn.style.backgroundColor = "#00E5FF";
                 proceedBtn.style.color = "#0E1117";
                 proceedBtn.style.border = "none";
                 proceedBtn.style.boxShadow = "0 4px 14px 0 rgba(0, 229, 255, 0.4)";
+                proceedBtn.innerText = "Proceed";
+                proceedBtn.className = "btn";
             } else {
-                proceedBtn.innerText = "Proceed Anyway";
-                proceedBtn.className = "btn btn-secondary";
                 proceedBtn.style.backgroundColor = "transparent";
                 proceedBtn.style.color = "#FF3366";
                 proceedBtn.style.borderColor = "#FF3366";
                 proceedBtn.style.borderStyle = "solid";
                 proceedBtn.style.borderWidth = "2px";
                 proceedBtn.style.boxShadow = "none";
+                proceedBtn.innerText = "Proceed Anyway";
+                proceedBtn.className = "btn btn-secondary";
             }
         }
         
         setupGazeReplayAnimation();
         updateStreamlitFrameHeight();
         
+        // --- TEMPORARY DEBUG LOGGING ---
+        console.log("=== CALIBRATION METRICS DEBUG LOG ===");
+        console.log("Total Frames:", totalFrames);
+        console.log("Valid Gaze Frames:", validGazeFrames);
+        console.log("Invalid Gaze Frames:", invalidGazeFrames);
+        console.log("Calibration Target Count:", calibrationData.length);
+        console.log("Matched Gaze-Target Sample Count:", errors.length);
+        console.log("First 5 Predicted Gaze Coordinates:", validSamples.slice(0, 5).map(s => `(${s.gaze_x}, ${s.gaze_y})`));
+        console.log("First 5 Target Coordinates:", validSamples.slice(0, 5).map(s => `(${s.target_x}, ${s.target_y})`));
+        console.log("First 5 Calculated Gaze Errors (Scaled):", errors.slice(0, 5));
+        console.log("Raw Sample Loss Value before Percentage Formatting:", lossRate);
+        console.log("=====================================");
+        
         validationReportData = {
-            mean_error: Math.round(meanErr),
-            median_error: Math.round(medianErr),
-            max_error: Math.round(maxErr),
-            p95_error: Math.round(p95Err),
-            rms_error: Math.round(rmsErr),
+            mean_error: meanErr !== null ? Math.round(meanErr) : null,
+            median_error: medianErr !== null ? Math.round(medianErr) : null,
+            max_error: maxErr !== null ? Math.round(maxErr) : null,
+            p95_error: p95Err !== null ? Math.round(p95Err) : null,
+            rms_error: rmsErr !== null ? Math.round(rmsErr) : null,
             latency_ms: 25,
-            gaze_jitter: parseFloat(jitter.toFixed(2)),
+            gaze_jitter: jitter !== null ? parseFloat(jitter.toFixed(2)) : null,
             sample_loss_rate: parseFloat(lossRate.toFixed(4)),
             samples_collected: samplesCountCal,
             samples_rejected: samplesRejectedCal,
-            head_motion_score: parseFloat(avgHeadMotion.toFixed(6)),
-            score: score,
+            head_motion_score: Number.isFinite(avgHeadMotion) ? parseFloat(avgHeadMotion.toFixed(6)) : null,
+            score: totalScore,
             quality: quality,
             passes: passes,
             failure_reasons: reasons,

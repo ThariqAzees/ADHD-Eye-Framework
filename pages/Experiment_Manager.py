@@ -217,7 +217,9 @@ with tab_monitor:
         if cal_events:
             last_cal = cal_events[-1]
             calibration_status = "Completed"
-            tracking_confidence = f"{last_cal['payload'].get('quality', 'Poor')} (Err: {last_cal['payload'].get('mean_error', 999)}px)"
+            err_val = last_cal['payload'].get('mean_error')
+            err_str = f"{err_val}px" if err_val is not None and err_val != 999 else "N/A"
+            tracking_confidence = f"{last_cal['payload'].get('quality', 'Poor')} (Err: {err_str})"
             
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1:
