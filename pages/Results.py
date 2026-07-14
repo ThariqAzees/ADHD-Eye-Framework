@@ -23,7 +23,7 @@ if os.path.exists(config_path):
         config = json.load(f)
 else:
     config = {"calibration": {"excellent": 25.0, "good": 50.0, "fair": 75.0}}
-    
+
 cal_thresholds = config["calibration"]
 
 # Check if results are present in session state
@@ -90,7 +90,7 @@ with col_e1:
         loss_rate = cal_metrics.get("sample_loss_rate")
         head_motion = cal_metrics.get("head_motion_score")
         quality = cal_metrics.get("quality_rating", "Poor")
-        
+
         # Formatting helpers
         def fmt_px(val):
             return f"{val} px" if val is not None and val != 999 else "N/A"
@@ -100,7 +100,7 @@ with col_e1:
 
         def fmt_val(val, decimals=5):
             return f"{val:.{decimals}f}" if val is not None and val != 999.0 else "N/A"
-        
+
         # Classify quality coloring
         quality_color = "#FF3366"
         if quality == "Excellent":
@@ -109,7 +109,7 @@ with col_e1:
             quality_color = "#58A6FF"
         elif quality == "Fair":
             quality_color = "#D29922"
-            
+
         st.markdown(f"**Calibration Quality Rating:** <span style='font-size: 20px; font-weight: bold; color: {quality_color};'>{quality}</span>", unsafe_allow_html=True)
         st.markdown(f"""
         - **Mean Gaze Error:** `{fmt_px(mean_err)}`
@@ -121,12 +121,12 @@ with col_e1:
         - **Sample Loss Rate:** `{fmt_pct(loss_rate)}`
         - **Head Motion Score:** `{fmt_val(head_motion)}`
         """)
-        
+
         # Summary Gaze Stats
         total_frames = len(df_raw)
         blink_frames = len(df_raw[df_raw['blink_state'] == 1])
         valid_frames_pct = ((total_frames - blink_frames) / total_frames) * 100 if total_frames > 0 else 0
-        
+
         st.markdown("**Gaze Acquisition Summary**")
         st.write(f"- Total Frames: `{total_frames}`")
         st.write(f"- Blink Frames: `{blink_frames}`")
@@ -136,7 +136,7 @@ with col_e2:
     st.markdown("#### 🗺️ Gaze Density Heatmap (During Task)")
     # Gaze positions during the active task trials, excluding blink states
     df_valid_gaze = df_raw[(df_raw['blink_state'] == 0) & (~df_raw['gaze_x'].isna()) & (~df_raw['gaze_y'].isna())]
-    
+
     if len(df_valid_gaze) > 0:
         fig_hm = plot_gaze_density_heatmap(df_valid_gaze, title="Gaze Position Density Layout during Cognitive Trials")
         st.plotly_chart(fig_hm, use_container_width=True)
@@ -161,19 +161,19 @@ col_r1, col_r2 = st.columns(2)
 
 with col_r1:
     st.markdown("#### 🎯 Cognitive Accuracy Breakdown")
-    
+
     fig_acc = plot_accuracy_by_load(df_resp)
     st.plotly_chart(fig_acc, use_container_width=True)
-    
+
     fig_dist = plot_accuracy_by_distractor(df_resp)
     st.plotly_chart(fig_dist, use_container_width=True)
 
 with col_r2:
     st.markdown("#### ⚡ Reaction Time & Pupil Proxy Timelines")
-    
+
     fig_rt = plot_reaction_time_timeline(df_resp)
     st.plotly_chart(fig_rt, use_container_width=True)
-    
+
     fig_pupil = plot_pupil_proxy_trace(df_trial)
     st.plotly_chart(fig_pupil, use_container_width=True)
 
@@ -181,6 +181,36 @@ with col_r2:
 # FEATURES SUMMARY TABLE
 # ----------------------------------------------------
 st.markdown("#### 📋 Session Feature Summary Table")
+
+# Formatting helpers to handle None (N/A) and fix negative zero globally
+def clean_negative_zero(formatted_str: str) -> str:
+    if formatted_str.startswith('-'):
+        stripped = formatted_str[1:]
+        check_str = stripped.replace('%', '').replace('ms', '').replace('pixels', '').replace('pixel', '').strip()
+        if all(c in ('0', '.') for c in check_str):
+            return stripped
+    return formatted_str
+
+def safe_pct(val):
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return "N/A"
+    return clean_negative_zero(f"{val * 100:.1f}%")
+
+def safe_ms(val):
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return "N/A"
+    return clean_negative_zero(f"{val:.1f} ms")
+
+def safe_pixels(val):
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return "N/A"
+    return clean_negative_zero(f"{val:.2f} pixels")
+
+def safe_val(val, fmt="{:.4f}"):
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return "N/A"
+    return clean_negative_zero(fmt.format(val))
+
 feat_summary_data = {
     "Feature Name": [
         "Accuracy Overall",
@@ -190,25 +220,25 @@ feat_summary_data = {
         "Median Reaction Time",
         "Reaction Time SD (Variability)",
         "Reaction Time Coefficient of Variation (CV)",
-        "Mean Fixation Instability",
-        "Mean Pupil Radius Proxy",
+        "Mean Fixation Instability (Scaled RMS)",
+        "Mean Z-Scored Pupil Proxy",
         "Omission Rate",
         "False-Alarm Rate",
         "Hit Rate"
     ],
     "Value": [
-        f"{agg_features.accuracy_overall*100:.1f}%",
-        f"{agg_features.accuracy_by_load_diff*100:.1f}%",
-        f"{agg_features.accuracy_by_distractor_diff*100:.1f}%",
-        f"{agg_features.mean_reaction_time_ms:.1f} ms",
-        f"{agg_features.median_reaction_time_ms:.1f} ms",
-        f"{agg_features.rt_variability:.1f} ms",
-        f"{agg_features.rt_coefficient_of_variation:.4f}",
-        f"{agg_features.mean_fixation_stability:.2f} pixels",
-        f"{agg_features.mean_pupil_proxy:.2f} pixels",
-        f"{agg_features.omission_rate*100:.1f}%",
-        f"{agg_features.false_alarm_rate*100:.1f}%",
-        f"{agg_features.hit_rate*100:.1f}%"
+        safe_pct(agg_features.accuracy_overall),
+        safe_pct(agg_features.accuracy_by_load_diff),
+        safe_pct(agg_features.accuracy_by_distractor_diff),
+        safe_ms(agg_features.mean_reaction_time_ms),
+        safe_ms(agg_features.median_reaction_time_ms),
+        safe_ms(agg_features.rt_variability),
+        safe_val(agg_features.rt_coefficient_of_variation, "{:.4f}"),
+        safe_pixels(agg_features.mean_fixation_stability),
+        safe_pixels(agg_features.mean_pupil_proxy),
+        safe_pct(agg_features.omission_rate),
+        safe_pct(agg_features.false_alarm_rate),
+        safe_pct(agg_features.hit_rate)
     ]
 }
 st.table(pd.DataFrame(feat_summary_data))
@@ -217,12 +247,86 @@ st.table(pd.DataFrame(feat_summary_data))
 st.markdown(f"""
 <div style="background-color: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 6px; font-size: 11px; color: #8B949E; margin-bottom: 24px;">
     <strong>REPRODUCIBILITY METADATA:</strong><br>
-    Framework Version: {agg_features.framework_version} | 
-    Feature Extractor Version: {agg_features.feature_extractor_version} | 
-    Model Package Version: {agg_features.model_version} | 
+    Framework Version: {agg_features.framework_version} |
+    Feature Extractor Version: {agg_features.feature_extractor_version} |
+    Model Package Version: {agg_features.model_version} |
     Dataset Baseline Version: {agg_features.dataset_version}
 </div>
 """, unsafe_allow_html=True)
+
+# Confusion Matrix and Gaze Diagnostics Expander
+with st.expander("🛠️ System Diagnostics & Confusion Matrix (Researcher View)"):
+    st.markdown("### 📊 Cognitive Task Confusion Matrix")
+
+    # Calculate confusion matrix values
+    total_trials = len(df_resp)
+
+    # Omissions check (user_response == -1 or rt <= 0 or rt >= 5000)
+    omissions = len(df_resp[(df_resp['user_response'] == -1) | (df_resp['reaction_time_ms'] <= 0) | (df_resp['reaction_time_ms'] >= 5000)])
+
+    # Valid trials (non-omissions)
+    df_valid = df_resp[(df_resp['user_response'] != -1) & (df_resp['reaction_time_ms'] > 0) & (df_resp['reaction_time_ms'] < 5000)]
+
+    target_trials = len(df_resp[df_resp['corr_response'] == 1])
+    lure_trials = len(df_resp[df_resp['corr_response'] == 0])
+
+    hits = len(df_valid[(df_valid['corr_response'] == 1) & (df_valid['user_response'] == 1)])
+    misses = len(df_valid[(df_valid['corr_response'] == 1) & (df_valid['user_response'] == 0)])
+    correct_rejections = len(df_valid[(df_valid['corr_response'] == 0) & (df_valid['user_response'] == 0)])
+    false_alarms = len(df_valid[(df_valid['corr_response'] == 0) & (df_valid['user_response'] == 1)])
+
+    st.markdown(f"""
+    - **Total Trials:** `{total_trials}`
+    - **Target Trials (Yes expected):** `{target_trials}`
+    - **Lure Trials (No expected):** `{lure_trials}`
+    - **Hits (True Positives):** `{hits}`
+    - **Misses (False Negatives):** `{misses}`
+    - **Correct Rejections (True Negatives):** `{correct_rejections}`
+    - **False Alarms (False Positives):** `{false_alarms}`
+    - **Omissions (No Response):** `{omissions}`
+    """)
+
+    st.markdown("### 👁️ Gaze & Pupil Diagnostics")
+
+    device_meta = results.get('device_metadata', {})
+    viewport = device_meta.get('viewport_size', 'N/A')
+    dpr = device_meta.get('device_pixel_ratio', 'N/A')
+
+    total_frames = len(df_raw)
+    blink_frames = len(df_raw[df_raw['blink_state'] == 1])
+    valid_frames_pct = ((total_frames - blink_frames) / total_frames) * 100 if total_frames > 0 else 0.0
+
+    # Pupil radius ranges
+    pupil_samples = df_raw['left_iris_radius'].dropna()
+    valid_pupil_sample_count = len(pupil_samples)
+    min_pupil = float(pupil_samples.min()) if valid_pupil_sample_count > 0 else 0.0
+    max_pupil = float(pupil_samples.max()) if valid_pupil_sample_count > 0 else 0.0
+    mean_pupil = float(pupil_samples.mean()) if valid_pupil_sample_count > 0 else 0.0
+
+    # Fixation samples
+    fix_frames = df_raw[df_raw['trial_phase'].str.startswith('fixation', na=False)]
+    fixation_sample_count = len(fix_frames)
+
+    # Validation errors
+    verification_log = cal_metrics.get('verification_log', [])
+    errors_str = "None"
+    if verification_log:
+        err_list = [v.get('error') for v in verification_log if v.get('error') is not None]
+        if err_list:
+            errors_str = ", ".join(f"{e}px" for e in err_list[:20])
+
+    st.markdown(f"""
+    - **Gaze Canvas Dimensions:** `{viewport}` (devicePixelRatio: `{dpr}`)
+    - **Webcam Video Stream Size:** `640 x 480`
+    - **Total Frame Logs Collected:** `{total_frames}`
+    - **Valid Gaze Frames:** `{total_frames - blink_frames}`
+    - **Invalid Gaze Frames (Blinks/Loss):** `{blink_frames}`
+    - **Raw Gaze Signal Quality:** `{valid_frames_pct:.1f}%`
+    - **First 20 Validation Errors:** `{errors_str}`
+    - **Valid Pupil Radius Sample Count:** `{valid_pupil_sample_count}`
+    - **Min / Max / Mean Pupil Radius:** `{min_pupil:.2f}px / {max_pupil:.2f}px / {mean_pupil:.2f}px`
+    - **Fixation Sample Count:** `{fixation_sample_count}`
+    """)
 
 # ----------------------------------------------------
 # RESEARCH MODEL OUTPUT CARD (WITH MANDATORY DISCLAIMER IN FRAME)
@@ -234,9 +338,9 @@ if len(predictions) > 0:
         options=["xgboost", "random_forest", "logistic_regression"],
         format_func=lambda x: x.replace("_", " ").title()
     )
-    
+
     risk_score = predictions.get(selected_model, 0.0)
-    
+
     # Styled unified output card containing BOTH score and disclaimer in the same visual frame
     st.markdown(f"""
     <div style="background-color: #161B22; border: 2px solid #00E5FF; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(0, 229, 255, 0.15); margin-bottom: 30px;">
@@ -252,7 +356,7 @@ if len(predictions) > 0:
         </div>
         <div style="background-color: rgba(210, 153, 34, 0.08); border-left: 4px solid #D29922; padding: 12px; border-radius: 4px; font-size: 13px; color: #C9D1D9; line-height: 1.4;">
             <strong>⚠️ Clinical Disclaimer:</strong><br>
-            This score represents the research model output indicating pattern similarity to participants within the Rojas-Líbano et al. (2019) clinical dataset. 
+            This score represents the research model output indicating pattern similarity to participants within the Rojas-Líbano et al. (2019) clinical dataset.
             <strong>This is not a medical diagnosis.</strong> This is an exploratory research engineering demonstration and should not be used as a substitute for professional clinical advice, diagnosis, or treatment. Consult a licensed healthcare specialist for any medical evaluation.
         </div>
     </div>
@@ -278,7 +382,7 @@ with col_ex1:
     ]
     feats_dict = {col: getattr(agg_features, col, None) for col in clean_cols}
     df_export = pd.DataFrame([feats_dict])
-    
+
     csv_data = df_export.to_csv(index=False)
     st.download_button(
         label="📥 Download Session Features CSV",
@@ -312,7 +416,7 @@ with col_ex2:
         mime="application/json",
         use_container_width=True
     )
-    
+
 st.markdown("---")
 st.markdown("### 🏁 End Experiment Session")
 if st.button("Close Experiment Session & Lock Logs", use_container_width=True, type="primary"):
