@@ -1,0 +1,15 @@
+Column Name,Data Type,Unique Values,Null Count,Duplicate Count,Constant Feature?,Min Value,Max Value
+subject_id,str,50,0,0,No,N/A,N/A
+group,str,2,0,48,No,N/A,N/A
+mean_reaction_time_ms,float64,50,0,0,No,582.1927632353303,795.6048390403932
+median_reaction_time_ms,float64,50,0,0,No,573.7988206380369,823.2154054266842
+rt_variability,float64,50,0,0,No,77.34104233332306,186.53255222970736
+rt_coefficient_of_variation,float64,50,0,0,No,0.1305438651880463,0.25845336193461443
+accuracy_overall,float64,15,0,35,No,0.625,0.975
+accuracy_by_load_diff,float64,49,0,1,No,-0.17042606516290726,0.4343434343434343
+accuracy_by_distractor_diff,float64,47,0,3,No,-0.3125,0.4444444444444444
+mean_fixation_stability,float64,50,0,0,No,1.643411180858019,6.867162418397695
+mean_pupil_proxy,float64,50,0,0,No,-0.09708830934629893,0.09302068109787716
+omission_rate,float64,5,0,45,No,0.0,0.125
+false_alarm_rate,float64,37,0,13,No,0.0,0.4666666666666667
+hit_rate,float64,41,0,9,No,0.4444444444444444,1.0

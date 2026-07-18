@@ -1,0 +1,7 @@
+Model,Metric,Observed_Score,Null_Mean,Null_SD,Empirical_p_value
+Logistic_Regression,ROC_AUC,0.7,0.5123,0.1245,0.0739
+Logistic_Regression,F1_Score,0.7242,0.7952,0.0521,0.997
+Random_Forest,ROC_AUC,0.69,0.5098,0.1312,0.0909
+Random_Forest,F1_Score,0.8692,0.7412,0.0487,0.001
+XGBoost,ROC_AUC,0.6833,0.5054,0.1415,0.1479
+XGBoost,F1_Score,0.7827,0.7932,0.0584,0.996

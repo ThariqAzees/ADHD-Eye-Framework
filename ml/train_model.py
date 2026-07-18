@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pickle
 import datetime
 import numpy as np
@@ -18,7 +20,7 @@ def train_and_evaluate_pipelines() -> dict:
     and saves the final pipelines to ml/models_v1.0.pkl.
     """
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    csv_path = os.path.join(base_dir, "data", "processed", "dataset_features_v1.0.csv")
+    csv_path = os.path.join(base_dir, "data", "processed", "dataset_features_REAL_v1.0.csv")
     models_dir = os.path.join(base_dir, "ml")
     os.makedirs(models_dir, exist_ok=True)
     models_pkl_path = os.path.join(models_dir, "models_v1.0.pkl")
@@ -28,8 +30,9 @@ def train_and_evaluate_pipelines() -> dict:
         
     df = pd.read_csv(csv_path)
     
-    # Target and features separation
-    X = df.drop(columns=['subject_id', 'group'])
+    # Use corrected features for training the live production model
+    from ml.features import CORRECTED_FEATURE_NAMES
+    X = df[CORRECTED_FEATURE_NAMES]
     feature_names = list(X.columns)
     
     # Map target: ADHD -> 1, Control -> 0
@@ -198,7 +201,11 @@ def train_and_evaluate_pipelines() -> dict:
     with open(model_pkl_path, 'wb') as f:
         pickle.dump(package, f)
         
-    print(f"\nBundled model package saved successfully to {models_pkl_path} and {model_pkl_path}!")
+    model_real_pkl_path = os.path.join(models_dir, "model_REAL_v1.0.pkl")
+    with open(model_real_pkl_path, 'wb') as f:
+        pickle.dump(package, f)
+        
+    print(f"\nBundled model package saved successfully to {models_pkl_path}, {model_pkl_path}, and {model_real_pkl_path}!")
     return summary_metrics
 
 if __name__ == "__main__":

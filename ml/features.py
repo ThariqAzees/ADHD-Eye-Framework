@@ -5,8 +5,8 @@ Aligns with the subject and trial aggregates defined in dataset/schema.py.
 
 from typing import List
 
-# Complete list of engineered features used in the ML training and inference
-FEATURE_NAMES: List[str] = [
+# Analysis A: Legacy / Reproduced features
+LEGACY_FEATURE_NAMES: List[str] = [
     'mean_reaction_time_ms',
     'median_reaction_time_ms',
     'rt_variability',
@@ -21,6 +21,26 @@ FEATURE_NAMES: List[str] = [
     'hit_rate'
 ]
 
+# Analysis B: Corrected / Scientifically justified features
+CORRECTED_FEATURE_NAMES: List[str] = [
+    'mean_reaction_time_ms',
+    'median_reaction_time_ms',
+    'rt_variability',
+    'rt_coefficient_of_variation',
+    'accuracy_overall',
+    'accuracy_by_load_diff',
+    'accuracy_by_distractor_diff',
+    'normalized_fixation_instability',
+    'normalized_gaze_dispersion',
+    'pupil_variability',
+    'omission_rate',
+    'false_alarm_rate',
+    'hit_rate'
+]
+
+# Default union list for inference and compatibility checks
+FEATURE_NAMES: List[str] = list(set(LEGACY_FEATURE_NAMES + CORRECTED_FEATURE_NAMES))
+
 FEATURE_DESCRIPTIONS = {
     'mean_reaction_time_ms': 'Mean reaction time in milliseconds for correct trials.',
     'median_reaction_time_ms': 'Median reaction time in milliseconds for correct trials.',
@@ -29,8 +49,11 @@ FEATURE_DESCRIPTIONS = {
     'accuracy_overall': 'Overall accuracy across all trials (0.0 to 1.0).',
     'accuracy_by_load_diff': 'Accuracy on load 1 (1 dot) minus accuracy on load 2 (2 dots). Shows working memory load effect.',
     'accuracy_by_distractor_diff': 'Accuracy on trials with no distractor minus accuracy on emotional distractor trials.',
-    'mean_fixation_stability': 'Standard deviation of gaze coordinates during fixation delays (lower = more stable).',
-    'mean_pupil_proxy': 'Mean of iris radius size proxy across trials (units not comparable to baseline EyeLink data).',
+    'mean_fixation_stability': 'Legacy pixel-based fixation stability scaled by 1/12 (lower = more stable).',
+    'mean_pupil_proxy': 'Legacy session mean of trial-level pupil z-scores (mathematically constrained to be near zero).',
+    'normalized_fixation_instability': 'Normalized coordinate fixation instability (root-mean-square spatial deviation of gaze).',
+    'normalized_gaze_dispersion': 'Normalized coordinate gaze dispersion during dot array presentations.',
+    'pupil_variability': 'Session-level standard deviation of trial-level pupil z-score means.',
     'omission_rate': 'Rate of trials with no response (timeout or missed response).',
     'false_alarm_rate': 'Rate of incorrect "Yes" responses when the probe target was not in memory.',
     'hit_rate': 'Rate of correct "Yes" responses when the probe target was in memory.'

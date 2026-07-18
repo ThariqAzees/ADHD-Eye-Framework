@@ -1,0 +1,7 @@
+SYNTHETIC — NOT FOR PUBLICATION RESULTS.
+=========================================
+This archive contains the high-fidelity mock/synthetic reference dataset,
+derived processed features, validation metadata, and trained models.
+These files were used for testing and pipeline verification, but do not contain
+genuine clinical recordings. They MUST NOT be used for publication results.
+Archived on: 2026-07-18

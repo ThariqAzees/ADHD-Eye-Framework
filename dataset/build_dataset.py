@@ -202,7 +202,7 @@ def run_dataset_validation(features_df: pd.DataFrame) -> dict:
     # 1. Total number of participants
     num_participants = features_df['subject_id'].nunique()
     report['num_participants'] = int(num_participants)
-    report['num_participants_valid'] = bool(num_participants == 50)
+    report['num_participants_valid'] = bool(num_participants == 40)
     
     # 2. Class Balance (ADHD vs Control)
     class_counts = features_df['group'].value_counts().to_dict()
@@ -210,8 +210,8 @@ def run_dataset_validation(features_df: pd.DataFrame) -> dict:
     num_adhd = class_counts.get('ADHD', 0)
     num_control = class_counts.get('Control', 0)
     report['class_balance_ratio'] = float(num_adhd / num_control) if num_control > 0 else 0.0
-    # Expected exactly 28 ADHD and 22 Control
-    report['class_balance_valid'] = bool(num_adhd == 28 and num_control == 22)
+    # Expected exactly 28 ADHD and 12 Control
+    report['class_balance_valid'] = bool(num_adhd == 28 and num_control == 12)
     
     # 3. Missing values
     missing_counts = features_df.isnull().sum().to_dict()
@@ -234,14 +234,10 @@ def run_dataset_validation(features_df: pd.DataFrame) -> dict:
     rt_min = features_df['mean_reaction_time_ms'].min()
     rt_max = features_df['mean_reaction_time_ms'].max()
     report['rt_range'] = {'min': float(rt_min), 'max': float(rt_max)}
-    # Reaction times should be positive and in reasonable ranges (e.g. 200ms to 1200ms)
+    # Reaction times should be positive and in reasonable ranges
     report['rt_range_valid'] = bool(rt_min > 200.0 and rt_max < 1500.0)
     
     # Verify working memory load effect
-    # Note: load effect is checked on trial-by-trial level, not subject aggregate level directly,
-    # but we can check if it exists in the raw logs or aggregate accuracies.
-    # Let's say: load effect is accuracy_by_load_diff (accuracy(1-dot) - accuracy(2-dot)).
-    # We expect the mean accuracy_by_load_diff to be positive.
     mean_load_diff = features_df['accuracy_by_load_diff'].mean()
     report['mean_accuracy_by_load_diff'] = float(mean_load_diff)
     report['load_effect_valid'] = bool(mean_load_diff > 0.0)
@@ -259,74 +255,153 @@ def run_dataset_validation(features_df: pd.DataFrame) -> dict:
 
 def build_processed_dataset(mat_path: str) -> tuple:
     """
-    Parses the Pupil_dataset.mat file, extracts SubjectAggregateFeatures,
-    validates them, and saves features to data/processed/dataset_features_v1.0.csv.
+    Parses the authentic Pupil_dataset.mat file via h5py and MCOS indices,
+    extracts SubjectAggregateFeatures, validates them, and saves features
+    to data/processed/dataset_features_REAL_v1.0.csv.
     """
+    import h5py
+    from dataset.parse_mat import extract_subject_features
+    
+    # 1. Enforce hard-error checking on MD5
+    expected_md5 = "d4a1e92c8e125e93831f12797a783d52"
+    if not check_file_md5(mat_path, expected_md5):
+        raise ValueError(f"MAT file at {mat_path} is missing or has an incorrect MD5 checksum. Recovery pipeline aborted.")
+        
     _, processed_dir, _ = get_data_dirs()
-    output_csv = os.path.join(processed_dir, "dataset_features_v1.0.csv")
-    output_metadata = os.path.join(processed_dir, "dataset_features_v1.0_metadata.json")
+    output_csv = os.path.join(processed_dir, "dataset_features_REAL_v1.0.csv")
+    output_metadata = os.path.join(processed_dir, "dataset_features_REAL_v1.0_metadata.json")
     
-    print(f"Parsing MATLAB dataset from {mat_path}...")
-    mat_data = read_mat(mat_path)
+    print(f"Parsing authentic MATLAB dataset from {mat_path} via HDF5...")
     
-    if 'Pupil_dataset' not in mat_data:
-        raise ValueError("Variable 'Pupil_dataset' not found in MAT file.")
-        
-    struct_array = mat_data['Pupil_dataset']
-    
-    # Identify number of subjects
-    if isinstance(struct_array, list):
-        num_subjects = len(struct_array)
-    elif isinstance(struct_array, dict):
-        # Find first list/array in dict
-        num_subjects = 0
-        for val in struct_array.values():
-            if isinstance(val, (list, np.ndarray)):
-                num_subjects = len(val)
-                break
-    else:
-        raise TypeError("Unexpected structure type for Pupil_dataset.")
-        
     subject_features_list = []
     
-    for i in range(num_subjects):
-        # Extract fields robustly
-        if isinstance(struct_array, list):
-            subj_data = struct_array[i]
-        else:
-            subj_data = {key: val[i] for key, val in struct_array.items() if isinstance(val, (list, np.ndarray))}
+    with h5py.File(mat_path, 'r') as f:
+        mcos = f['#subsystem#/MCOS']
+        pdata = f['Pupil_data']
+        num_sessions = pdata['Subject'].shape[0]
+        
+        print(f"Total sessions in raw file: {num_sessions}")
+        
+        def decode_value(ref):
+            if not isinstance(ref, h5py.Reference):
+                if isinstance(ref, np.ndarray):
+                    return ref.flatten()[0] if ref.size > 0 else None
+                return ref
+            target = f[ref]
+            if isinstance(target, h5py.Dataset):
+                val = target[()]
+                mclass = target.attrs.get('MATLAB_class')
+                if mclass == b'char':
+                    if val.dtype == 'uint16':
+                        return val.tobytes().decode('utf-16').strip()
+                    else:
+                        return val.tobytes().decode('ascii', errors='ignore').strip()
+                if target.dtype.kind in 'ui' and val.size > 0 and val.size < 100:
+                    try:
+                        chars = [chr(int(c)) for c in val.flatten()]
+                        if all(32 <= ord(c) < 127 for c in chars):
+                            return "".join(chars).strip()
+                    except:
+                        pass
+                if val.size == 0:
+                    return None
+                return val.flatten()[0]
+            return target
             
-        subj_id = f"subject_{int(subj_data['Subject'])}"
-        raw_group = str(subj_data['Group']).strip()
-        
-        # Map group label: off-ADHD / on-ADHD -> ADHD; Ctrl -> Control
-        if 'ADHD' in raw_group:
-            group = 'ADHD'
-        else:
-            group = 'Control'
+        included_count = 0
+        for i in range(num_sessions):
+            # Extract basic identifiers
+            subj_ref = pdata['Subject'][i, 0]
+            subj_val = decode_value(subj_ref)
             
-        task_epoch = subj_data['Task_epoch']
-        task_data = subj_data['Task_data']
-        
-        _, agg_feat = extract_subject_features(subj_id, group, task_epoch, task_data)
-        subject_features_list.append(agg_feat)
-        
+            group_ref = pdata['Group'][i, 0]
+            group_val = decode_value(group_ref)
+            
+            # Check None/NaN first to avoid value conversion errors
+            if subj_val is None or (isinstance(subj_val, float) and np.isnan(subj_val)) or group_val is None:
+                print(f"Excluding Session {i} because subject ID or group is missing/invalid.")
+                continue
+                
+            # Exclusion 1: Repeated medicated sessions
+            if group_val == 'on-ADHD':
+                print(f"Excluding Session {i} (Subject {int(subj_val)}): repeated medicated measurement.")
+                continue
+                
+            # Check trial count to filter incomplete control sessions
+            trials_count = 0
+            has_trials = False
+            try:
+                te_idx = 541 + 7 * i
+                te_cell = f[mcos[0, te_idx]]
+                trial_ref = te_cell[0, 0] if te_cell.ndim == 2 else te_cell[0]
+                trials_shape = f[trial_ref].shape
+                trials_count = trials_shape[1] if len(trials_shape) == 2 else trials_shape[0]
+                has_trials = True
+            except:
+                pass
+                
+            # Exclusion 2: Incomplete sessions
+            if trials_count != 160:
+                print(f"Excluding Session {i} (Subject {int(subj_val)}): incomplete data (trials count = {trials_count}).")
+                continue
+                
+            # Extract Task_data continuous streams
+            td_idx = 9 + 7 * i
+            td_cell = f[mcos[0, td_idx]]
+            
+            time_ref = td_cell[0, 0] if td_cell.ndim == 2 else td_cell[0]
+            pos_ref = td_cell[2, 0] if td_cell.ndim == 2 else td_cell[2]
+            diam_ref = td_cell[1, 0] if td_cell.ndim == 2 else td_cell[1]
+            
+            task_data = {
+                'Time': f[time_ref][()].flatten(),
+                'Position': f[pos_ref][()],
+                'Diameter': f[diam_ref][()].flatten()
+            }
+            
+            # Extract Task_epocs trial-by-trial columns
+            load_ref = te_cell[1, 0] if te_cell.ndim == 2 else te_cell[1]
+            dist_ref = te_cell[2, 0] if te_cell.ndim == 2 else te_cell[2]
+            corr_ref = te_cell[3, 0] if te_cell.ndim == 2 else te_cell[3]
+            perf_ref = te_cell[4, 0] if te_cell.ndim == 2 else te_cell[4]
+            rt_ref = te_cell[5, 0] if te_cell.ndim == 2 else te_cell[5]
+            pup_ref = te_cell[6, 0] if te_cell.ndim == 2 else te_cell[6]
+            
+            # Extract trials pupil traces cell array list
+            pupil_ds = f[pup_ref]
+            pupils_list = []
+            for t in range(160):
+                t_trace_ref = pupil_ds[1, t]
+                p_trace_ref = pupil_ds[0, t]
+                pupils_list.append((f[t_trace_ref][()].flatten(), f[p_trace_ref][()].flatten()))
+                
+            task_epoch = {
+                'Trial': f[trial_ref][()].flatten(),
+                'Load': f[load_ref][()].flatten(),
+                'Distractor': f[dist_ref][()].flatten(),
+                'CorrResponse': f[corr_ref][()].flatten(),
+                'Perform': f[perf_ref][()].flatten(),
+                'RTime': f[rt_ref][()].flatten(),
+                'Pupil': pupils_list
+            }
+            
+            subj_id_str = f"subject_{int(subj_val)}"
+            group_mapped = 'ADHD' if 'ADHD' in group_val else 'Control'
+            
+            # Extract subject features
+            _, agg_feat = extract_subject_features(subj_id_str, group_mapped, task_epoch, task_data)
+            subject_features_list.append(agg_feat)
+            included_count += 1
+            
     # Convert to DataFrame
     features_df = pd.DataFrame([f.__dict__ for f in subject_features_list])
     
-    # Save CSV (only engineered features, not including versions inside CSV columns if we want it pure,
-    # but having the metadata in separate json is required. We keep subject_id and group as keys,
-    # but other columns are features.)
-    # We will exclude the tracking metadata fields from the CSV columns to keep it pure,
-    # but wait, let's keep them if they are useful, or save a clean feature set.
-    # The request says: "dataset_features_v1.0.csv should contain only engineered features. Keep participant metadata separate."
-    # So we separate engineered features (accuracy, reaction times, stability, pupil slope, hit rate, etc.)
-    # and key identifiers (subject_id, group) from software versions.
     clean_cols = [
         'subject_id', 'group',
         'mean_reaction_time_ms', 'median_reaction_time_ms', 'rt_variability', 'rt_coefficient_of_variation',
         'accuracy_overall', 'accuracy_by_load_diff', 'accuracy_by_distractor_diff',
         'mean_fixation_stability', 'mean_pupil_proxy',
+        'normalized_fixation_instability', 'normalized_gaze_dispersion', 'pupil_variability',
         'omission_rate', 'false_alarm_rate', 'hit_rate'
     ]
     features_df_clean = features_df[clean_cols]
@@ -341,7 +416,7 @@ def build_processed_dataset(mat_path: str) -> tuple:
         "feature_extractor_version": "1.0.0",
         "dataset_version": "Rojas-Libano-2019-v3",
         "processed_timestamp": datetime.datetime.now().isoformat(),
-        "num_subjects": int(num_subjects),
+        "num_subjects": int(included_count),
         "validation": validation_report
     }
     

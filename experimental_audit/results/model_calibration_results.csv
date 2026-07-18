@@ -1,0 +1,4 @@
+Model,Brier Score
+logistic_regression,0.001734361907447641
+random_forest,0.0024980000000000002
+xgboost,0.020149491128784492

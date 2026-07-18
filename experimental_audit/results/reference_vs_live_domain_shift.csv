@@ -1,0 +1,6 @@
+Protocol Parameter,Reference Pipeline (Rojas-Líbano),Live Web System (ADHD Eye),Significance of Domain Shift,Verification Status
+Eye-tracking hardware,EyeLink 1000 tower-mount physical eye tracker (infrared),Standard RGB Webcam camera (uncontrolled visual environments),CRITICAL. The reference tracker captures physical pupil boundaries; webcam maps pixel coordinate landmarks.,SIGNIFICANT DOMAIN SHIFT
+Sampling rate,1000 Hz high frequency,Throttled at 40 Hz,CRITICAL. A 40Hz sampling rate cannot capture fine micro-saccades or high-frequency pupil diameter changes.,SIGNIFICANT DOMAIN SHIFT
+Trial encoding duration,750 ms per dot array,2000 ms per dot array,MEDIUM. Explores working memory encoding under different cognitive load times.,SIGNIFICANT DOMAIN SHIFT
+Trial response limit,1500 ms response window timeout,5000 ms response window timeout,"HIGH. Mismatches in reaction times affect features (Mean, SD, CV) making models trained on reference data incompatible with live data.",SIGNIFICANT DOMAIN SHIFT
+Trial count,40 trials per subject,10 trials per subject,HIGH. Fewer trials increase variance and susceptibility to outliers.,SIGNIFICANT DOMAIN SHIFT

@@ -1,0 +1,16 @@
+Model,Metric,Mean,SD,Min,Max
+logistic_regression,accuracy,1.0,0.0,1.0,1.0
+logistic_regression,precision,1.0,0.0,1.0,1.0
+logistic_regression,recall,1.0,0.0,1.0,1.0
+logistic_regression,f1,1.0,0.0,1.0,1.0
+logistic_regression,auc,1.0,0.0,1.0,1.0
+random_forest,accuracy,1.0,0.0,1.0,1.0
+random_forest,precision,1.0,0.0,1.0,1.0
+random_forest,recall,1.0,0.0,1.0,1.0
+random_forest,f1,1.0,0.0,1.0,1.0
+random_forest,auc,1.0,0.0,1.0,1.0
+xgboost,accuracy,0.9800000000000001,0.04472135954999579,0.9,1.0
+xgboost,precision,1.0,0.0,1.0,1.0
+xgboost,recall,0.9666666666666668,0.07453559924999298,0.8333333333333334,1.0
+xgboost,f1,0.9818181818181818,0.0406557814090871,0.9090909090909091,1.0
+xgboost,auc,0.9833333333333334,0.03726779962499646,0.9166666666666667,1.0

@@ -11,3 +11,5 @@ venv/
 # Runtime exports and raw logs
 data/exports/
 data/raw/*.csv
+data/synthetic_archive/*.mat
+

@@ -214,14 +214,17 @@ def safe_val(val, fmt="{:.4f}"):
 feat_summary_data = {
     "Feature Name": [
         "Accuracy Overall",
-        "Accuracy Load Difference (1-dot - 2-dot)",
-        "Accuracy Distractor Difference (none - emotional)",
+        "Accuracy Working Memory Load Difference",
+        "Accuracy Distractor Condition Difference",
         "Mean Reaction Time",
         "Median Reaction Time",
         "Reaction Time SD (Variability)",
         "Reaction Time Coefficient of Variation (CV)",
         "Mean Fixation Instability (Scaled RMS)",
         "Mean Z-Scored Pupil Proxy",
+        "Normalized Fixation Instability (RMS)",
+        "Normalized Gaze Dispersion (RMS)",
+        "Task Pupil Variability (SD of Trial Means)",
         "Omission Rate",
         "False-Alarm Rate",
         "Hit Rate"
@@ -236,6 +239,9 @@ feat_summary_data = {
         safe_val(agg_features.rt_coefficient_of_variation, "{:.4f}"),
         safe_pixels(agg_features.mean_fixation_stability),
         safe_pixels(agg_features.mean_pupil_proxy),
+        safe_val(agg_features.normalized_fixation_instability, "{:.4f}"),
+        safe_val(agg_features.normalized_gaze_dispersion, "{:.4f}"),
+        safe_val(agg_features.pupil_variability, "{:.4f}"),
         safe_pct(agg_features.omission_rate),
         safe_pct(agg_features.false_alarm_rate),
         safe_pct(agg_features.hit_rate)
@@ -378,6 +384,7 @@ with col_ex1:
         'mean_reaction_time_ms', 'median_reaction_time_ms', 'rt_variability', 'rt_coefficient_of_variation',
         'accuracy_overall', 'accuracy_by_load_diff', 'accuracy_by_distractor_diff',
         'mean_fixation_stability', 'mean_pupil_proxy',
+        'normalized_fixation_instability', 'normalized_gaze_dispersion', 'pupil_variability',
         'omission_rate', 'false_alarm_rate', 'hit_rate'
     ]
     feats_dict = {col: getattr(agg_features, col, None) for col in clean_cols}

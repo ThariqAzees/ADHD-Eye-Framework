@@ -71,6 +71,8 @@ def extract_features_from_logs(
 
         fixation_stability = None
         gaze_dispersion = None
+        normalized_fixation_instability = None
+        normalized_gaze_dispersion = None
         pupil_mean = None
         pupil_slope = None
 
@@ -127,18 +129,28 @@ def extract_features_from_logs(
                     var_y = np.var(gaze_y_scaled)
                     fixation_stability = float(np.sqrt(var_x + var_y))
 
+                    # Normalized coordinate fixation instability
+                    gaze_x_norm = valid_gaze['gaze_x'].values / viewport_width
+                    gaze_y_norm = valid_gaze['gaze_y'].values / viewport_height
+                    normalized_fixation_instability = float(np.sqrt(np.var(gaze_x_norm) + np.var(gaze_y_norm)))
+
             # 3.3 Gaze Dispersion (during array encoding presentation)
             arr_frames = trial_frames[trial_frames['trial_phase'].str.startswith('array', na=False)]
             if len(arr_frames) > 0:
-                valid_gaze = arr_frames[(arr_frames['blink_state'] == 0) &
-                                        (~arr_frames['gaze_x'].isna()) &
-                                        (~arr_frames['gaze_y'].isna())]
-                if len(valid_gaze) > 1:
-                    gaze_x_scaled = valid_gaze['gaze_x'].values * scale_x
-                    gaze_y_scaled = valid_gaze['gaze_y'].values * scale_y
-                    var_x = np.var(gaze_x_scaled)
-                    var_y = np.var(gaze_y_scaled)
-                    gaze_dispersion = float(np.sqrt(var_x + var_y))
+                valid_gaze_arr = arr_frames[(arr_frames['blink_state'] == 0) &
+                                            (~arr_frames['gaze_x'].isna()) &
+                                            (~arr_frames['gaze_y'].isna())]
+                if len(valid_gaze_arr) > 1:
+                    gaze_x_scaled_arr = valid_gaze_arr['gaze_x'].values * scale_x
+                    gaze_y_scaled_arr = valid_gaze_arr['gaze_y'].values * scale_y
+                    var_x_arr = np.var(gaze_x_scaled_arr)
+                    var_y_arr = np.var(gaze_y_scaled_arr)
+                    gaze_dispersion = float(np.sqrt(var_x_arr + var_y_arr))
+
+                    # Normalized coordinate gaze dispersion
+                    gaze_x_norm_arr = valid_gaze_arr['gaze_x'].values / viewport_width
+                    gaze_y_norm_arr = valid_gaze_arr['gaze_y'].values / viewport_height
+                    normalized_gaze_dispersion = float(np.sqrt(np.var(gaze_x_norm_arr) + np.var(gaze_y_norm_arr)))
 
         trial_features_list.append(TrialFeatures(
             subject_id=subject_id,
@@ -150,7 +162,9 @@ def extract_features_from_logs(
             fixation_stability=fixation_stability / 12.0 if fixation_stability is not None else None,
             pupil_proxy_mean=pupil_mean,
             pupil_proxy_trial_slope=pupil_slope,
-            gaze_dispersion_during_array=gaze_dispersion / 12.0 if gaze_dispersion is not None else None
+            gaze_dispersion_during_array=gaze_dispersion / 12.0 if gaze_dispersion is not None else None,
+            normalized_fixation_instability=normalized_fixation_instability,
+            normalized_gaze_dispersion=normalized_gaze_dispersion
         ))
 
     # 4. Aggregate subject features
@@ -193,8 +207,15 @@ def extract_features_from_logs(
     fix_stabs = [t.fixation_stability for t in trial_features_list if t.fixation_stability is not None and t.fixation_stability > 0]
     mean_fix_stab = float(np.mean(fix_stabs)) if fix_stabs else None
 
+    fix_stabs_norm = [t.normalized_fixation_instability for t in trial_features_list if t.normalized_fixation_instability is not None]
+    mean_fix_stab_norm = float(np.mean(fix_stabs_norm)) if fix_stabs_norm else None
+
+    gaze_disps_norm = [t.normalized_gaze_dispersion for t in trial_features_list if t.normalized_gaze_dispersion is not None]
+    mean_gaze_disp_norm = float(np.mean(gaze_disps_norm)) if gaze_disps_norm else None
+
     pupil_means = [t.pupil_proxy_mean for t in trial_features_list if t.pupil_proxy_mean is not None]
     mean_pupil = float(np.mean(pupil_means)) if pupil_means else None
+    pupil_var = float(np.std(pupil_means)) if pupil_means else None
 
     # Cognitive task metrics: omission, hit, false alarm
     hits = 0
@@ -238,6 +259,9 @@ def extract_features_from_logs(
         accuracy_by_distractor_diff=acc_by_dist_diff,
         mean_fixation_stability=mean_fix_stab,
         mean_pupil_proxy=mean_pupil,
+        normalized_fixation_instability=mean_fix_stab_norm,
+        normalized_gaze_dispersion=mean_gaze_disp_norm,
+        pupil_variability=pupil_var,
         omission_rate=omission_rate,
         false_alarm_rate=false_alarm_rate,
         hit_rate=hit_rate
