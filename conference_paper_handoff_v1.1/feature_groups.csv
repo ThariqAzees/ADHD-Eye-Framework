@@ -1,0 +1,13 @@
+Feature,Group
+mean_reaction_time_ms,REACTION TIME
+median_reaction_time_ms,REACTION TIME
+rt_variability,REACTION TIME
+rt_coefficient_of_variation,REACTION TIME
+accuracy_overall,BEHAVIORAL
+accuracy_by_load_diff,BEHAVIORAL
+accuracy_by_distractor_diff,BEHAVIORAL
+omission_rate,BEHAVIORAL
+false_alarm_rate,BEHAVIORAL
+hit_rate,BEHAVIORAL
+mean_fixation_stability,GAZE
+mean_pupil_proxy,PUPIL
