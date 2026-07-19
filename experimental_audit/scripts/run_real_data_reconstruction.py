@@ -271,8 +271,8 @@ def main():
         ctrl_vals = ctrl_df[feat].dropna().values
         
         # Descriptive stats
-        m_adhd, sd_adhd = np.mean(adhd_vals), np.std(adhd_vals)
-        m_ctrl, sd_ctrl = np.mean(ctrl_vals), np.std(ctrl_vals)
+        m_adhd, sd_adhd = np.mean(adhd_vals), np.std(adhd_vals, ddof=1)
+        m_ctrl, sd_ctrl = np.mean(ctrl_vals), np.std(ctrl_vals, ddof=1)
         
         # Mann-Whitney U test
         stat, p_val = stats.mannwhitneyu(adhd_vals, ctrl_vals, alternative='two-sided')

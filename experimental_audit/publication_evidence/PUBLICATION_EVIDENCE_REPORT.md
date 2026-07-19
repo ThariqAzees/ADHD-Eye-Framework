@@ -1,13 +1,13 @@
 # Publication Evidence Report
 
-This report presents the final publication evidence, statistical analyses, machine learning validations, feature ablation comparisons, and methodological audits derived from the verified authentic Rojas-Líbano et al. (2019) ADHD dataset ($N = 40$ unique participants).
+This report presents the final publication evidence, statistical analyses, machine learning validations, feature ablation comparisons, and methodological audits derived from the verified authentic Rojas-LÃƒÆ’Ã‚Â­bano et al. (2019) ADHD dataset ($N = 40$ unique participants).
 
 ---
 
 ## Executive Publication Verdict
 
 1.  **What is the strongest statistically supported ADHD-vs-Control difference?**
-    *   **Behavioral task performance accuracy**: Unmedicated ADHD subjects exhibit a significantly lower `accuracy_overall` ($0.611 \pm 0.177$) compared to Controls ($0.781 \pm 0.098$, raw $p = 0.0017$).
+    *   **Behavioral task performance accuracy**: Unmedicated ADHD subjects exhibit a significantly lower `accuracy_overall` ($0.6114 \pm 0.1798$) compared to Controls ($0.7813 \pm 0.1024$, raw $p = 0.0017$).
 2.  **Which findings survive FDR correction?**
     *   Only **`accuracy_overall`** ($p = 0.0017$, FDR $q = 0.0262$) and **`hit_rate`** ($p = 0.0040$, FDR $q = 0.0300$) survive the Benjamini-Hochberg FDR correction under $\alpha = 0.05$. Omission rate, RT coefficient of variation, and pupil variability do **not** survive FDR correction.
 3.  **What is the most defensible ML performance estimate?**
@@ -103,8 +103,8 @@ The table below summarizes the descriptive parameters (sample $N$, Mean, SD, Med
 
 | Feature | Group | N | Mean | SD | Median | IQR | Min | Max |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `accuracy_overall` | ADHD | 28 | 0.611384 | 0.176516 | 0.628125 | 0.231250 | 0.3250 | 0.9000 |
-| | Control | 12 | 0.781250 | 0.098061 | 0.803125 | 0.103125 | 0.5875 | 0.9125 |
+| `accuracy_overall` | ADHD | 28 | 0.611384 | 0.179756 | 0.646875 | 0.276562 | 0.2500 | 0.9063 |
+| | Control | 12 | 0.781250 | 0.102421 | 0.825000 | 0.078125 | 0.5688 | 0.8813 |
 | `mean_reaction_time_ms` | ADHD | 28 | 801.9394 | 147.6873 | 754.7700 | 224.2389 | 572.63 | 1148.06 |
 | | Control | 12 | 847.2151 | 85.6936 | 856.8404 | 123.3642 | 682.02 | 967.65 |
 | `rt_coefficient_of_variation` | ADHD | 28 | 0.299930 | 0.101719 | 0.287848 | 0.109723 | 0.1256 | 0.5855 |
@@ -273,7 +273,7 @@ The 17 repeated medicated ADHD sessions (`on-ADHD`) are quarantined. They can su
 
 The laboratory offline dataset and the live webcam prototype are distinct systems. Successful classification on the laboratory dataset does **not** validate the webcam system.
 
-| Aspect | Rojas-Líbano Dataset | Our Webcam System | Comparable? | Implication |
+| Aspect | Rojas-LÃƒÆ’Ã‚Â­bano Dataset | Our Webcam System | Comparable? | Implication |
 | :--- | :--- | :--- | :---: | :--- |
 | **Participants** | Clinical cohort (ADHD/Control). | General users / prototype testers. | **NO** | Webcam predictions are exploratory; cannot claim clinical diagnostic power. |
 | **Eye Tracker** | EyeLink 1000 tower-mount. | Built-in webcam. | **NO** | Webcam has substantially higher measurement noise and lower resolution. |
@@ -318,7 +318,7 @@ Based on the verified evidence, the top three ranked paper directions are:
     2. Adding eye-tracking features to behavioral metrics improves classification ROC-AUC.
 *   **Central Finding**: Hypothesis 1 is partially supported (accuracy is significant, pupil variability shows a medium effect size but fails FDR). Hypothesis 2 is **refuted** (adding eye-tracking features leads to model overfitting and performance degradation).
 *   **Contributions**:
-    1. Rigorous, leakage-free replication audit of the Rojas-Líbano dataset showing true clinical limits.
+    1. Rigorous, leakage-free replication audit of the Rojas-LÃƒÆ’Ã‚Â­bano dataset showing true clinical limits.
     2. Demonstration of clinical Occam's Razor: a single behavioral feature (`accuracy_overall`) outperforms complex multimodal classifiers.
     3. Documenting the risk of feature redundancy and the impact of class prevalence on F1 inflation in small clinical samples.
 
