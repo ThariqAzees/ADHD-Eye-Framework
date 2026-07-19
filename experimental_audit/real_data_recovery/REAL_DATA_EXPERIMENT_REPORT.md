@@ -1,11 +1,11 @@
 # Real Data Recovery and Experimental Audit Report
 
-This report presents the findings of the systematic recovery and machine learning replication audit on the authentic Rojas-LÃƒÂ­bano (2019) ADHD dataset. 
+This report presents the findings of the systematic recovery and machine learning replication audit on the authentic Rojas-LÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­bano (2019) ADHD dataset. 
 
 ---
 
 ## 1. Provenance and Session Flow
-*   **Original Dataset Source**: Rojas-LÃƒÂ­bano, D. et al. "A pupil size, eye-tracking and neuropsychological dataset from ADHD children during a cognitive task", *Scientific Data*, 6(1), 25 (2019). Figshare DOI: [10.6084/m9.figshare.7218725](https://doi.org/10.6084/m9.figshare.7218725).
+*   **Original Dataset Source**: Rojas-LÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­bano, D. et al. "A pupil size, eye-tracking and neuropsychological dataset from ADHD children during a cognitive task", *Scientific Data*, 6(1), 25 (2019). Figshare DOI: [10.6084/m9.figshare.7218725](https://doi.org/10.6084/m9.figshare.7218725).
 *   **Downloaded Raw File**: `data/raw/Pupil_dataset.mat` (Version 3)
 *   **Checksum Verification**: MD5 `d4a1e92c8e125e93831f12797a783d52` (Verified)
 *   **Cohort Flow & Exclusions**:
@@ -21,7 +21,7 @@ This report presents the findings of the systematic recovery and machine learnin
 *   **Dataset Size**: $N = 40$ rows.
 *   **Group Balance**: 28 ADHD (70.0%) and 12 Control (30.0%).
 *   **Duplicate Subjects**: 0 (No subject ID appears more than once).
-*   **Missing Values**: Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Missing gaze values were programmatically handled using a mean imputation strategy within each cross-validation fold to prevent data leakage. All other features have 0 missing values (100% completeness).
+*   **Missing Values**: Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Missing gaze values were programmatically handled using a median imputation strategy within each cross-validation fold to prevent data leakage. All other features have 0 missing values (100% completeness).
 *   **Outliers Detected (Z-score > 3)**:
     *   `accuracy_by_distractor_diff`: 1 participant.
     *   `rt_coefficient_of_variation`: 1 participant.
@@ -89,12 +89,12 @@ The following table summarizes model performance across outer folds for both Ana
 
 | Analysis | Model | Accuracy | Balanced Acc | Precision | Recall (Sens) | Specificity | F1 Score | ROC AUC | PR AUC | Empirical p (AUC) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Analysis A (Legacy) | Logistic Regression | 0.700 Ã‚Â± 0.061 | 0.533 Ã‚Â± 0.067 | 0.717 Ã‚Â± 0.081 | 0.967 Ã‚Â± 0.067 | 0.100 Ã‚Â± 0.200 | 0.817 Ã‚Â± 0.040 | 0.820 Ã‚Â± 0.093 | 0.939 Ã‚Â± 0.031 | N/A |
-| Analysis A (Legacy) | Random Forest | 0.850 Ã‚Â± 0.094 | 0.793 Ã‚Â± 0.112 | 0.886 Ã‚Â± 0.107 | 0.920 Ã‚Â± 0.160 | 0.667 Ã‚Â± 0.279 | 0.886 Ã‚Â± 0.086 | 0.767 Ã‚Â± 0.204 | 0.876 Ã‚Â± 0.114 | N/A |
-| Analysis A (Legacy) | XGBoost | 0.700 Ã‚Â± 0.061 | 0.513 Ã‚Â± 0.027 | 0.708 Ã‚Â± 0.053 | 0.960 Ã‚Â± 0.080 | 0.067 Ã‚Â± 0.133 | 0.814 Ã‚Â± 0.055 | 0.647 Ã‚Â± 0.124 | 0.794 Ã‚Â± 0.070 | N/A |
-| Analysis B (Corrected) | Logistic Regression | 0.700 Ã‚Â± 0.061 | 0.500 Ã‚Â± 0.000 | 0.700 Ã‚Â± 0.061 | 1.000 Ã‚Â± 0.000 | 0.000 Ã‚Â± 0.000 | 0.822 Ã‚Â± 0.043 | 0.700 Ã‚Â± 0.059 | 0.893 Ã‚Â± 0.031 | 0.0739 |
-| Analysis B (Corrected) | Random Forest | 0.825 Ã‚Â± 0.127 | 0.760 Ã‚Â± 0.128 | 0.836 Ã‚Â± 0.100 | 0.920 Ã‚Â± 0.160 | 0.600 Ã‚Â± 0.226 | 0.869 Ã‚Â± 0.114 | 0.690 Ã‚Â± 0.179 | 0.837 Ã‚Â± 0.120 | 0.0909 |
-| Analysis B (Corrected) | XGBoost | 0.700 Ã‚Â± 0.127 | 0.530 Ã‚Â± 0.117 | 0.711 Ã‚Â± 0.101 | 0.960 Ã‚Â± 0.080 | 0.100 Ã‚Â± 0.200 | 0.815 Ã‚Â± 0.089 | 0.650 Ã‚Â± 0.167 | 0.802 Ã‚Â± 0.113 | 0.1479 |
+| Analysis A (Legacy) | Logistic Regression | 0.700 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.061 | 0.533 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.067 | 0.717 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.081 | 0.967 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.067 | 0.100 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.200 | 0.817 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.040 | 0.820 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.093 | 0.939 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.031 | N/A |
+| Analysis A (Legacy) | Random Forest | 0.850 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.094 | 0.793 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.112 | 0.886 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.107 | 0.920 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.160 | 0.667 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.279 | 0.886 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.086 | 0.767 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.204 | 0.876 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.114 | N/A |
+| Analysis A (Legacy) | XGBoost | 0.700 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.061 | 0.513 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.027 | 0.708 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.053 | 0.960 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.080 | 0.067 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.133 | 0.814 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.055 | 0.647 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.124 | 0.794 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.070 | N/A |
+| Analysis B (Corrected) | Logistic Regression | 0.700 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.061 | 0.500 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.000 | 0.700 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.061 | 1.000 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.000 | 0.000 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.000 | 0.822 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.043 | 0.700 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.059 | 0.893 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.031 | 0.0739 |
+| Analysis B (Corrected) | Random Forest | 0.825 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.127 | 0.760 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.128 | 0.836 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.100 | 0.920 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.160 | 0.600 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.226 | 0.869 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.114 | 0.690 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.179 | 0.837 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.120 | 0.0909 |
+| Analysis B (Corrected) | XGBoost | 0.700 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.127 | 0.530 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.117 | 0.711 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.101 | 0.960 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.080 | 0.100 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.200 | 0.815 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.089 | 0.650 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.167 | 0.802 ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± 0.113 | 0.1479 |
 
 ### Figures
 

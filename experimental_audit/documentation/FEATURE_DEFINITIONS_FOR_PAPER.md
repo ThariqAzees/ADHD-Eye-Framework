@@ -135,7 +135,7 @@ This document lists and defines all features extracted from the Rojas-Líbano et
 *   **Scientific Interpretation**: Measures spatial gaze stability and occurrence of micro-saccades during delay epochs.
 *   **Measurement**: Engineered.
 *   **ML Inclusion**: YES.
-*   **Limitations**: Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Handled via mean imputation within cross-validation folds.
+*   **Limitations**: Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Handled via median imputation within cross-validation folds.
 
 ### 12. `normalized_gaze_dispersion`
 *   **Category**: Gaze
@@ -148,7 +148,7 @@ This document lists and defines all features extracted from the Rojas-Líbano et
 *   **Scientific Interpretation**: Measures spatial search visual spread during memory encoding.
 *   **Measurement**: Engineered.
 *   **ML Inclusion**: YES.
-*   **Limitations**: Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Handled via mean imputation within cross-validation folds.
+*   **Limitations**: Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Handled via median imputation within cross-validation folds.
 
 ---
 

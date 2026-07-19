@@ -166,9 +166,10 @@ def main():
     content = rebuild_real_data_table(content, desc_df, inf_df)
     
     # Update Gaze Missingness wording in REAL_DATA_EXPERIMENT_REPORT.md
+    content = content.replace("mean imputation", "median imputation")
     content = content.replace(
         "*   **Missing Values**: 0 missing values across all aggregate features (full-case integrity).",
-        "*   **Missing Values**: Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Missing gaze values were programmatically handled using a mean imputation strategy within each cross-validation fold to prevent data leakage. All other features have 0 missing values (100% completeness)."
+        "*   **Missing Values**: Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Missing gaze values were programmatically handled using a median imputation strategy within each cross-validation fold to prevent data leakage. All other features have 0 missing values (100% completeness)."
     )
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(content)
@@ -193,9 +194,10 @@ def main():
                               "0.781250 | 0.102421 | 0.825000 | 0.078125 | 0.5688 | 0.8813")
                               
     # Update Gaze Missingness wording in PUBLICATION_EVIDENCE_REPORT.md
+    content = content.replace("mean imputation", "median imputation")
     content = content.replace(
         "adding them to behavioral baselines degrades performance due to high tracking noise and $65\\%$ missingness.",
-        "adding them to behavioral baselines degrades performance due to high tracking noise and $65\\%$ missingness (specifically, two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features). Missing gaze values were programmatically handled using a mean imputation strategy within each cross-validation fold to prevent data leakage."
+        "adding them to behavioral baselines degrades performance due to high tracking noise and $65\\%$ missingness (specifically, two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features). Missing gaze values were programmatically handled using a median imputation strategy within each cross-validation fold to prevent data leakage."
     )
     content = content.replace(
         "adding high-dimensional, noisy, or heavily imputed eye-tracking features (gaze data is missing for $65\\%$ of sessions) leads to",
@@ -214,6 +216,7 @@ def main():
     content = content.replace("SD = 0.098061", "SD = **0.102421** [Sample SD]")
     content = content.replace("U: **227.0**", "U: **232.0**")
     content = content.replace("U: **225.0**", "U: **231.0**")
+    content = content.replace("mean imputation", "median imputation")
     content = content.replace(
         "*   Gaze Coordinate Missingness: **65.0%** (26 out of 40 sessions missing continuous gaze).",
         "*   Gaze Coordinate Missingness: Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features."
@@ -227,13 +230,14 @@ def main():
     with open(fdf_path, 'r', encoding='utf-8') as f:
         content = f.read()
         
+    content = content.replace("mean imputation", "median imputation")
     content = content.replace(
         "Missing coordinates in 65% of sessions (26 out of 40) due to tracking dropouts; requires median imputation.",
-        "Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Handled via mean imputation within cross-validation folds."
+        "Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Handled via median imputation within cross-validation folds."
     )
     content = content.replace(
         "Missing coordinates in 65% of sessions (26 out of 40); requires median imputation.",
-        "Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Handled via mean imputation within cross-validation folds."
+        "Two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features. Handled via median imputation within cross-validation folds."
     )
     with open(fdf_path, 'w', encoding='utf-8') as f:
         f.write(content)
@@ -244,6 +248,8 @@ def main():
     with open(log_path, 'r', encoding='utf-8') as f:
         content = f.read()
         
+    content = content.replace("mean imputation", "median imputation")
+    content = content.replace("SimpleImputer(strategy='mean')", "SimpleImputer(strategy='median')")
     # We replace references to the stale U values if any
     content = content.replace("MATCH (with Pop SD)", "MATCH (with Sample SD)")
     
@@ -264,8 +270,8 @@ This section logs the final clean-room package corrections to resolve all clinic
 *   **Root Cause**: Hardcoded mock lineage data from the pilot phase was generated by the legacy audit script.
 *   **Correction**: Quarantined the stale `feature_lineage.csv` in `experimental_audit/legacy_synthetic_artifacts/` and generated a new `feature_lineage_REAL_v1.0.csv` mapping the 15 features to their raw source references in the authentic HDF5 file. All features are certified as `REAL`.
 
-### Issue 3: Precise Gaze-Stability Missingness Wording
-*   **Correction**: Aligned gaze missingness descriptions to state precisely that the missingness (65%) is limited to the two engineered spatial gaze-stability features (`normalized_fixation_instability` and `normalized_gaze_dispersion`) which lack valid coordinates in 26 of 40 sessions. Documented that mean imputation (`SimpleImputer(strategy='mean')`) was fit strictly within CV loops.
+### Issue 3: Precise Gaze-Stability Missingness Wording & Imputation
+*   **Correction**: Aligned gaze missingness descriptions to state precisely that the missingness (65%) is limited to the two engineered spatial gaze-stability features (`normalized_fixation_instability` and `normalized_gaze_dispersion`) which lack valid coordinates in 26 of 40 sessions. Documented that median imputation (`SimpleImputer(strategy='median')`) was fit strictly within CV loops.
 """
     with open(log_path, 'w', encoding='utf-8') as f:
         f.write(content.strip() + rebuild_log_text)

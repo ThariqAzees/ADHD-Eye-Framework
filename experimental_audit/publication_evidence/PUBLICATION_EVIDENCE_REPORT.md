@@ -1,6 +1,6 @@
 # Publication Evidence Report
 
-This report presents the final publication evidence, statistical analyses, machine learning validations, feature ablation comparisons, and methodological audits derived from the verified authentic Rojas-LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­bano et al. (2019) ADHD dataset ($N = 40$ unique participants).
+This report presents the final publication evidence, statistical analyses, machine learning validations, feature ablation comparisons, and methodological audits derived from the verified authentic Rojas-LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­bano et al. (2019) ADHD dataset ($N = 40$ unique participants).
 
 ---
 
@@ -19,7 +19,7 @@ This report presents the final publication evidence, statistical analyses, machi
 6.  **Which feature group is most informative?**
     *   **Behavioral features** (Group A: accuracy metrics, hit/false-alarm/omission rates), which achieve an ROC-AUC of **0.770** (Logistic Regression) and **0.763** (Random Forest) when evaluated in isolation.
 7.  **Do gaze features add incremental value?**
-    *   **No**. Gaze features evaluated in isolation show poor classification performance (ROC-AUC = **0.352** for LR, **0.655** for RF), and adding them to behavioral baselines degrades performance due to high tracking noise and $65\%$ missingness (specifically, two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features). Missing gaze values were programmatically handled using a mean imputation strategy within each cross-validation fold to prevent data leakage.
+    *   **No**. Gaze features evaluated in isolation show poor classification performance (ROC-AUC = **0.352** for LR, **0.655** for RF), and adding them to behavioral baselines degrades performance due to high tracking noise and $65\%$ missingness (specifically, two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features). Missing gaze values were programmatically handled using a median imputation strategy within each cross-validation fold to prevent data leakage.
 8.  **Does pupil variability add incremental value?**
     *   **No**. Pupil variability in isolation achieves an ROC-AUC of **0.647** (LR) and **0.515** (RF). When added to Behavioral + RT baselines, it does not lead to any statistically significant performance gain.
 9.  **Does combined gaze+pupil add meaningful value beyond Behavioral+RT?**
@@ -273,7 +273,7 @@ The 17 repeated medicated ADHD sessions (`on-ADHD`) are quarantined. They can su
 
 The laboratory offline dataset and the live webcam prototype are distinct systems. Successful classification on the laboratory dataset does **not** validate the webcam system.
 
-| Aspect | Rojas-LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­bano Dataset | Our Webcam System | Comparable? | Implication |
+| Aspect | Rojas-LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­bano Dataset | Our Webcam System | Comparable? | Implication |
 | :--- | :--- | :--- | :---: | :--- |
 | **Participants** | Clinical cohort (ADHD/Control). | General users / prototype testers. | **NO** | Webcam predictions are exploratory; cannot claim clinical diagnostic power. |
 | **Eye Tracker** | EyeLink 1000 tower-mount. | Built-in webcam. | **NO** | Webcam has substantially higher measurement noise and lower resolution. |
@@ -318,7 +318,7 @@ Based on the verified evidence, the top three ranked paper directions are:
     2. Adding eye-tracking features to behavioral metrics improves classification ROC-AUC.
 *   **Central Finding**: Hypothesis 1 is partially supported (accuracy is significant, pupil variability shows a medium effect size but fails FDR). Hypothesis 2 is **refuted** (adding eye-tracking features leads to model overfitting and performance degradation).
 *   **Contributions**:
-    1. Rigorous, leakage-free replication audit of the Rojas-LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­bano dataset showing true clinical limits.
+    1. Rigorous, leakage-free replication audit of the Rojas-LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­bano dataset showing true clinical limits.
     2. Demonstration of clinical Occam's Razor: a single behavioral feature (`accuracy_overall`) outperforms complex multimodal classifiers.
     3. Documenting the risk of feature redundancy and the impact of class prevalence on F1 inflation in small clinical samples.
 
