@@ -1,6 +1,6 @@
 # Publication Evidence Report
 
-This report presents the final publication evidence, statistical analyses, machine learning validations, feature ablation comparisons, and methodological audits derived from the verified authentic Rojas-LÃƒÆ’Ã‚Â­bano et al. (2019) ADHD dataset ($N = 40$ unique participants).
+This report presents the final publication evidence, statistical analyses, machine learning validations, feature ablation comparisons, and methodological audits derived from the verified authentic Rojas-LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­bano et al. (2019) ADHD dataset ($N = 40$ unique participants).
 
 ---
 
@@ -19,7 +19,7 @@ This report presents the final publication evidence, statistical analyses, machi
 6.  **Which feature group is most informative?**
     *   **Behavioral features** (Group A: accuracy metrics, hit/false-alarm/omission rates), which achieve an ROC-AUC of **0.770** (Logistic Regression) and **0.763** (Random Forest) when evaluated in isolation.
 7.  **Do gaze features add incremental value?**
-    *   **No**. Gaze features evaluated in isolation show poor classification performance (ROC-AUC = **0.352** for LR, **0.655** for RF), and adding them to behavioral baselines degrades performance due to high tracking noise and $65\%$ missingness.
+    *   **No**. Gaze features evaluated in isolation show poor classification performance (ROC-AUC = **0.352** for LR, **0.655** for RF), and adding them to behavioral baselines degrades performance due to high tracking noise and $65\%$ missingness (specifically, two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features). Missing gaze values were programmatically handled using a mean imputation strategy within each cross-validation fold to prevent data leakage.
 8.  **Does pupil variability add incremental value?**
     *   **No**. Pupil variability in isolation achieves an ROC-AUC of **0.647** (LR) and **0.515** (RF). When added to Behavioral + RT baselines, it does not lead to any statistically significant performance gain.
 9.  **Does combined gaze+pupil add meaningful value beyond Behavioral+RT?**
@@ -122,14 +122,14 @@ Two-sided Mann-Whitney U tests and Cohen's $d$ effect sizes were computed for ea
 
 | Feature | Test | U-Statistic | Raw p-value | FDR-adjusted p-value (q) | Cohen d | Interpretation |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| `accuracy_overall` | Mann-Whitney U | 52.0 | **0.001746** | **0.026185** | -1.0536 | Large |
-| `hit_rate` | Mann-Whitney U | 60.5 | **0.004003** | **0.030026** | -1.0019 | Large |
-| `rt_coefficient_of_variation` | Mann-Whitney U | 227.0 | 0.060911 | 0.173766 | +0.7522 | Medium-Large |
-| `pupil_variability` | Mann-Whitney U | 225.0 | 0.065091 | 0.173766 | +0.6670 | Medium |
-| `rt_variability` | Mann-Whitney U | 223.0 | 0.069506 | 0.173766 | +0.6852 | Medium |
-| `omission_rate` | Mann-Whitney U | 212.0 | 0.116536 | 0.249720 | +0.6108 | Medium |
-| `normalized_gaze_dispersion` | Mann-Whitney U | 24.0 | 0.769231 | 0.887574 | +0.0229 | Negligible |
-| `normalized_fixation_instability` | Mann-Whitney U | 24.0 | 0.884615 | 0.947802 | +0.0536 | Negligible |
+| `accuracy_overall` | Mann-Whitney U | 61.5 | **0.001746** | **0.026185** | -1.0536 | Large |
+| `hit_rate` | Mann-Whitney U | 70.0 | **0.004003** | **0.030026** | -1.0019 | Large |
+| `rt_coefficient_of_variation` | Mann-Whitney U | 232.0 | 0.060911 | 0.173766 | +0.7522 | Medium |
+| `pupil_variability` | Mann-Whitney U | 231.0 | 0.065091 | 0.173766 | +0.6670 | Medium |
+| `rt_variability` | Mann-Whitney U | 230.0 | 0.069506 | 0.173766 | +0.6852 | Medium |
+| `omission_rate` | Mann-Whitney U | 221.5 | 0.116536 | 0.249720 | +0.6108 | Medium |
+| `normalized_gaze_dispersion` | Mann-Whitney U | 14.0 | 0.769231 | 0.887574 | +0.0229 | Negligible |
+| `normalized_fixation_instability` | Mann-Whitney U | 18.0 | 0.884615 | 0.947802 | +0.0536 | Negligible |
 
 *Audit Takeaway*: Only **`accuracy_overall`** and **`hit_rate`** survive the FDR multiple-comparisons correction. The reaction-time coefficient of variation and pupil variability show strong effect sizes ($d = +0.75$ and $+0.67$) but do not achieve FDR-corrected significance due to the limited sample size ($N=40$).
 
@@ -222,7 +222,7 @@ Identical nested-CV evaluations were conducted across the 9 pre-specified featur
     *   *Random Forest*: ROC-AUC drops from **0.700** (Behavioral+RT) to **0.690** (All features), a performance degradation of **-0.010**.
     *   *XGBoost*: ROC-AUC drops from **0.697** (Behavioral+RT) to **0.683** (All features), a performance degradation of **-0.014**.
     *   *Comparison to Behavioral-only*: The highest ROC-AUC is achieved by **Behavioral features alone** (Group A: **0.770** for LR, **0.763** for RF). Adding gaze and pupil features to the behavioral baseline degrades performance (LR AUC drops from **0.770** to **0.670**, a decrease of **-0.100**).
-*   **Scientific Rationale**: On a small dataset ($N=40$), adding high-dimensional, noisy, or heavily imputed eye-tracking features (gaze data is missing for $65\%$ of sessions) leads to severe model overfitting and poor out-of-fold generalization. Clinical Occam's Razor holds: simple behavioral metrics outperform complex multimodal models.
+*   **Scientific Rationale**: On a small dataset ($N=40$), adding high-dimensional, noisy, or heavily imputed eye-tracking features (specifically, two engineered gaze-stability features had valid coordinate data in 14 of 40 sessions (35%); 26 sessions (65%) lacked valid continuous gaze coordinates for these two engineered features) leads to severe model overfitting and poor out-of-fold generalization. Clinical Occam's Razor holds: simple behavioral metrics outperform complex multimodal models.
 
 ---
 
@@ -273,7 +273,7 @@ The 17 repeated medicated ADHD sessions (`on-ADHD`) are quarantined. They can su
 
 The laboratory offline dataset and the live webcam prototype are distinct systems. Successful classification on the laboratory dataset does **not** validate the webcam system.
 
-| Aspect | Rojas-LÃƒÆ’Ã‚Â­bano Dataset | Our Webcam System | Comparable? | Implication |
+| Aspect | Rojas-LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­bano Dataset | Our Webcam System | Comparable? | Implication |
 | :--- | :--- | :--- | :---: | :--- |
 | **Participants** | Clinical cohort (ADHD/Control). | General users / prototype testers. | **NO** | Webcam predictions are exploratory; cannot claim clinical diagnostic power. |
 | **Eye Tracker** | EyeLink 1000 tower-mount. | Built-in webcam. | **NO** | Webcam has substantially higher measurement noise and lower resolution. |
@@ -318,7 +318,7 @@ Based on the verified evidence, the top three ranked paper directions are:
     2. Adding eye-tracking features to behavioral metrics improves classification ROC-AUC.
 *   **Central Finding**: Hypothesis 1 is partially supported (accuracy is significant, pupil variability shows a medium effect size but fails FDR). Hypothesis 2 is **refuted** (adding eye-tracking features leads to model overfitting and performance degradation).
 *   **Contributions**:
-    1. Rigorous, leakage-free replication audit of the Rojas-LÃƒÆ’Ã‚Â­bano dataset showing true clinical limits.
+    1. Rigorous, leakage-free replication audit of the Rojas-LÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­bano dataset showing true clinical limits.
     2. Demonstration of clinical Occam's Razor: a single behavioral feature (`accuracy_overall`) outperforms complex multimodal classifiers.
     3. Documenting the risk of feature redundancy and the impact of class prevalence on F1 inflation in small clinical samples.
 
