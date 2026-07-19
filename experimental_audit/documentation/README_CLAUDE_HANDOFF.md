@@ -30,8 +30,8 @@ This directory contains the complete corrected handoff evidence package prepared
 | Filename | Type | Authoritative / Frozen? | Purpose / Description | SHA256 Checksum |
 | :--- | :---: | :---: | :--- | :--- |
 | `dataset_features_REAL_v1.0.csv` | CSV | YES (Frozen) | The real parsed participant-level feature matrix ($N=40$). | `CB3760A29DBE0AB93D4557F72C44743483961984CC60A1D62C319DE59A4E2B8C` |
-| `PUBLICATION_EVIDENCE_CORRECTION_LOG.md` | Doc | YES (Authoritative) | *Generated* | `C9B6AAE2331A5AC9FFF6AB243DDBB25F751DEFAF1C0571CE084D4AFCCE499314` |
-| `PUBLICATION_EVIDENCE_REPORT.md` | Doc | YES (Authoritative) | Key outcomes, sensitivity checks, and ablation verdicts. | `F1E7621236BB4B95C04827CCA74260C69C780633164428C5885C374486E6C54E` |
+| `PUBLICATION_EVIDENCE_CORRECTION_LOG.md` | Doc | YES (Authoritative) | *Generated* | `5952683E7184F95B8E7ECCE014519E21532C1CE2B6A0D6C7312B9992AC2F38F7` |
+| `PUBLICATION_EVIDENCE_REPORT.md` | Doc | YES (Authoritative) | Key outcomes, sensitivity checks, and ablation verdicts. | `D20CB5BAC1D87E8430D1FB6082B8619066E344CDBC0189A6B706962115E88B6B` |
 | `KEY_VERIFIED_NUMBERS.md` | Doc | YES (Authoritative) | *Generated* | `174FDE029D7EECA991185C1061A87A3AE3846D36A5572AB4F44DF9E4F9B07439` |
 | `CLAIMS_GUARDRAILS.md` | Doc | YES (Authoritative) | *Generated* | `3E15654786611D2C73C86EA42DA86638E66109ED264FC8895B71B3640D529589` |
 | `descriptive_statistics.csv` | Doc | YES (Authoritative) | Source for N, Mean, SD, Median, Min, Max. | `F813041DD759564F2F0F67A47B0FA3973E3C5829EBEB2F1C4EEE8DC9A1006376` |
