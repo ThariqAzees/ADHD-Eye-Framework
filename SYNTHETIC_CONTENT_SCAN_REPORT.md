@@ -1,6 +1,6 @@
 # Synthetic Content Scan Report
 
-**Total Matches**: 23
+**Total Matches**: 25
 **Failed Matches (Active Claims)**: 0
 **Status**: PASS
 
@@ -23,6 +23,8 @@
 | `PUBLICATION_EVIDENCE_CORRECTION_LOG.md` | 228 | `SYNTHETIC` | *   **Correction**: Quarantined the stale `feature_lineage.csv` in `experimental_audit/legacy_synthe | Legacy Explanation | PASS |
 | `PUBLICATION_EVIDENCE_CORRECTION_LOG.md` | 243 | `SYNTHETIC` | *   **Symptom**: The old `feature_lineage.csv` labeled all clinical features as "SYNTHETIC" and cont | Legacy Explanation | PASS |
 | `PUBLICATION_EVIDENCE_CORRECTION_LOG.md` | 245 | `SYNTHETIC` | *   **Correction**: Quarantined the stale `feature_lineage.csv` in `experimental_audit/legacy_synthe | Legacy Explanation | PASS |
+| `PUBLICATION_EVIDENCE_CORRECTION_LOG.md` | 260 | `SYNTHETIC` | *   **Symptom**: The old `feature_lineage.csv` labeled all clinical features as "SYNTHETIC" and cont | Legacy Explanation | PASS |
+| `PUBLICATION_EVIDENCE_CORRECTION_LOG.md` | 262 | `SYNTHETIC` | *   **Correction**: Quarantined the stale `feature_lineage.csv` in `experimental_audit/legacy_synthe | Legacy Explanation | PASS |
 | `FINAL_DATA_LINEAGE_CERTIFICATION.md` | 10 | `SYNTHETIC` | This document certifies that a complete, clean-room forensic data-lineage audit has been performed o | Legacy Explanation | PASS |
 | `FINAL_DATA_LINEAGE_CERTIFICATION.md` | 12 | `SYNTHETIC` | All inconsistencies identified in previous handoff versions (v1.0â€“v1.2) have been resolved. Stale  | Legacy Explanation | PASS |
 | `README_CLAUDE_HANDOFF.md` | 56 | `SYNTHETIC` | ## 3. Synthetic Assets Quarantined (DO NOT USE FOR PUBLICATION RESULTS) | Legacy Explanation | PASS |

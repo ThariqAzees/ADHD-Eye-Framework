@@ -322,18 +322,18 @@ This section logs the final clean-room package corrections to resolve all clinic
             'Reason': 'Univariate model baseline classification ranking.'
         },
         'ablation_summary.csv': {
-            'Source_Path': 'experimental_audit/results/ablation_summary.csv',
-            'Generated_By': 'experimental_audit/scripts/run_audit_experiments.py',
+            'Source_Path': 'experimental_audit/publication_evidence/ablation_summary.csv',
+            'Generated_By': 'scratch/generate_publication_evidence.py',
             'Generated_From': 'data/processed/dataset_features_REAL_v1.0.csv',
             'Status': 'AUTHORITATIVE_SOURCE',
-            'Reason': 'Ablation performance metrics across the 9 feature groups.'
+            'Reason': 'Authentic publication ablation metrics across groups A-I on REAL N=40 dataset.'
         },
         'ablation_detailed.csv': {
-            'Source_Path': 'experimental_audit/results/ablation_detailed.csv',
-            'Generated_By': 'experimental_audit/scripts/run_audit_experiments.py',
+            'Source_Path': 'experimental_audit/publication_evidence/ablation_detailed.csv',
+            'Generated_By': 'scratch/generate_publication_evidence.py',
             'Generated_From': 'data/processed/dataset_features_REAL_v1.0.csv',
             'Status': 'AUTHORITATIVE_SOURCE',
-            'Reason': 'Fold-level details of the feature ablation runs.'
+            'Reason': 'Fold-level authentic publication ablation details across groups A-I on REAL N=40 dataset.'
         },
         'permutation_results.csv': {
             'Source_Path': 'experimental_audit/publication_evidence/permutation_results.csv',

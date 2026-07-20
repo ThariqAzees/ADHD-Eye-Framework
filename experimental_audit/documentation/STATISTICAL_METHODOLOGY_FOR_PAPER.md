@@ -12,7 +12,7 @@ This document describes the statistical test framework, multiple-comparison corr
 
 ## 2. Multiple-Comparison Correction
 *   **Correction Method**: Benjamini-Hochberg False Discovery Rate (FDR) procedure.
-*   **Application**: Applied across the entire set of features (13 total) to control the false discovery rate under multiple testing.
+*   **Application**: Applied across the entire set of features (15 total in the clinical feature set; 13 ML input features) to control the false discovery rate under multiple testing.
 *   *Note*: Features are reported as statistically significant in the paper **only** if their FDR-adjusted $q$-value survives the $lpha = 0.05$ threshold.
 
 ---

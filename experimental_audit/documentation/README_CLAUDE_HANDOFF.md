@@ -30,14 +30,14 @@ This directory contains the complete corrected handoff evidence package prepared
 | Filename | Type | Authoritative / Frozen? | Purpose / Description | SHA256 Checksum |
 | :--- | :---: | :---: | :--- | :--- |
 | `dataset_features_REAL_v1.0.csv` | CSV | YES (Frozen) | The real parsed participant-level feature matrix ($N=40$). | `CB3760A29DBE0AB93D4557F72C44743483961984CC60A1D62C319DE59A4E2B8C` |
-| `PUBLICATION_EVIDENCE_CORRECTION_LOG.md` | Doc | YES (Authoritative) | *Generated* | `5952683E7184F95B8E7ECCE014519E21532C1CE2B6A0D6C7312B9992AC2F38F7` |
-| `PUBLICATION_EVIDENCE_REPORT.md` | Doc | YES (Authoritative) | Key outcomes, sensitivity checks, and ablation verdicts. | `D20CB5BAC1D87E8430D1FB6082B8619066E344CDBC0189A6B706962115E88B6B` |
+| `PUBLICATION_EVIDENCE_CORRECTION_LOG.md` | Doc | YES (Authoritative) | *Generated* | `8D50470AFFB213D8F5453ADE68CE4F992E2F340748775CC677171F2FB2BD39E0` |
+| `PUBLICATION_EVIDENCE_REPORT.md` | Doc | YES (Authoritative) | Key outcomes, sensitivity checks, and ablation verdicts. | `5B72C730F1F14A5D4B8A17D1524ADCA09235B2B547C41181CA81E6E081D823F6` |
 | `KEY_VERIFIED_NUMBERS.md` | Doc | YES (Authoritative) | *Generated* | `174FDE029D7EECA991185C1061A87A3AE3846D36A5572AB4F44DF9E4F9B07439` |
 | `CLAIMS_GUARDRAILS.md` | Doc | YES (Authoritative) | *Generated* | `3E15654786611D2C73C86EA42DA86638E66109ED264FC8895B71B3640D529589` |
 | `descriptive_statistics.csv` | Doc | YES (Authoritative) | Source for N, Mean, SD, Median, Min, Max. | `F813041DD759564F2F0F67A47B0FA3973E3C5829EBEB2F1C4EEE8DC9A1006376` |
 | `statistical_comparisons.csv` | Doc | YES (Authoritative) | Source for U-test, p-value, FDR q-value, Cohen's d. | `74B18436AD1C30EFD4777AE34BEDF1660E8E10A65EE6145F3E8D0B82927B559D` |
 | `model_performance_summary.csv` | Doc | YES (Authoritative) | Nested CV mean performance metrics. | `7BFD8B696F8B0F7C89DEA8090307F431F901F0BB74BC52338F1F8057242C4C73` |
-| `ablation_summary.csv` | Doc | YES (Authoritative) | Ablation performance values for the 9 conditions. | `7A45005EC945D1264747BF232B3FB252938DF136DA2C57D9DBDE05CDED7131F3` |
+| `ablation_summary.csv` | Doc | YES (Authoritative) | Ablation performance values for the 9 conditions. | `5203A9151E0C93BC70815706C4B77DED04AAA1BEF7FCB32EFD10D3EB6C45EDB0` |
 | `permutation_results.csv` | Doc | YES (Authoritative) | Shuffled null distributions and empirical p-values. | `09671B297917A0633043BE4E8EE5652B17ECB9B9FA4D09B3D5EDE3FB108EE0EA` |
 | `feature_groups.csv` | Doc | YES (Authoritative) | Mapping of features to modalities. | `B1692DBE8723DB07E3E3313F989859D95BF369260EEA8E81D297F63078171959` |
 | `feature_lineage.csv` | CSV | YES (Frozen) | Maps features to raw MAT variables and parsing functions. | `E863D98CA2ABD02A5D63AC58632E85C6CADC856E42943BD1A1B0F9672357B32C` |
