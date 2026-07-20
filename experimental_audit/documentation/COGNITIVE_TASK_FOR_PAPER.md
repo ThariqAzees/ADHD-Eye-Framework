@@ -18,7 +18,7 @@ The task is a delayed-recognition paradigm requiring the retention of spatial co
 [Trial Start]
       |
       v
-[Encoding Epoch: 2000 ms] -> Display of 1 or 2 red dots in a 5x5 grid
+[Encoding Epoch: 2000 ms] -> Display of 1 or 2 red dots in a 4x4 grid
       |
       v
 [Delay/Retention Epoch: 3000 ms] -> Empty screen (retention of dot positions)
